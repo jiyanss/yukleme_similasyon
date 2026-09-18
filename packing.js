@@ -3,6 +3,7 @@
 //  Yöntem: First-Fit Decreasing + Extreme Points
 //  Ölçüler: cm | Kullanım: PackingEngine.simulate(paketler, aracOlcu, aracAdedi)
 //  Yön (loadDir): "" serbest | "ENINE" boy→araç eni | "BOYUNA" boy→araç boyu
+//  İstif: boşsa otomatik = floor(araç yüksekliği / paketin o duruştaki yüksekliği)
 // ═══════════════════════════════════════════════════════
 var PackingEngine = (function () {
   "use strict";
@@ -16,13 +17,17 @@ var PackingEngine = (function () {
       var qty = Math.max(1, parseInt(p.Adet, 10) || 1);
       var dir = String(p.Yukleme || "").trim().toUpperCase();
       if (dir !== "ENINE" && dir !== "BOYUNA") dir = "";
+      // Kullanıcı istif kısıtı: boşsa null → motor otomatik hesaplar
+      var stackRaw = String(p.Istif === undefined || p.Istif === null ? "" : p.Istif).trim();
+      var stackInput = stackRaw === "" ? null : parseInt(stackRaw, 10);
+      if (stackInput !== null && (isNaN(stackInput) || stackInput < 1)) stackInput = null;
       for (var i = 0; i < qty; i++) {
         items.push({
           id: p.UrunKod + "-" + (i + 1),
           name: p.UrunKod,
           w: +p.En, l: +p.Boy, h: +p.Yukseklik,
           rule: p.Kural || "STANDART",
-          maxStack: parseInt(p.Istif, 10) || 5,
+          maxStackInput: stackInput,
           loadDir: dir,
         });
       }
@@ -30,7 +35,7 @@ var PackingEngine = (function () {
     items.sort(function (a, b) {
       var ro = RULE_ORDER[a.rule] - RULE_ORDER[b.rule];
       if (ro !== 0) return ro;
-      return b.w * b.l * b.h - a.w * a.l * a.h; // büyükten küçüğe
+      return b.w * b.l * b.h - a.w * a.l * a.h;
     });
     return items;
   }
@@ -44,19 +49,16 @@ var PackingEngine = (function () {
     var perms;
 
     if (item.loadDir === "BOYUNA") {
-      // Boy ölçüsü araç boyunca kalır; En ↔ Yükseklik takas edebilir
       perms = [
         [d[0], d[1], d[2]],
         [d[2], d[1], d[0]],
       ];
     } else if (item.loadDir === "ENINE") {
-      // Boy ölçüsü aracın enine yatar; kalan iki ölçü takas edebilir
       perms = [
         [d[1], d[0], d[2]],
         [d[1], d[2], d[0]],
       ];
     } else {
-      // Serbest: 6 permütasyon
       perms = [
         [d[0], d[1], d[2]], [d[0], d[2], d[1]],
         [d[1], d[0], d[2]], [d[1], d[2], d[0]],
@@ -70,12 +72,8 @@ var PackingEngine = (function () {
       if (!seen[key]) { seen[key] = 1; out.push({ w: pm[0], l: pm[1], h: pm[2] }); }
     });
 
-    // ═══ AKILLI SIRALAMA (serbest modun kalbi) ═══
-    // 1) Aracın enini EN ÇOK kullanan dönüş önce denenir
-    //    → yan şerit minimal kalır (örn: 245 ene 200 sığar, 45cm şerit açılır)
-    // 2) Eşitlikte taban alanı büyük (yatay duruş) önce → sağlam istif
-    // Böylece 160x200 parça önce ENINE uzanır; açılan şeriğe sıradaki
-    // parçalar DIKİNE yerleşerek boşluğu doldurur.
+    // Akıllı sıralama: araç enini en çok dolduran dönüş önce,
+    // eşitlikte taban alanı büyük (yatay) önce
     out.sort(function (a, b) {
       if (b.w !== a.w) return b.w - a.w;
       return (b.w * b.l) - (a.w * a.l);
@@ -93,7 +91,7 @@ var PackingEngine = (function () {
     return false;
   }
 
-  // Alt yüzeyin en az %75'i desteklenmeli (zemin veya alttaki paket)
+  // Alt yüzeyin en az %75'i desteklenmeli
   function supported(placements, box) {
     if (box.y < 0.01) return true;
     var support = 0, total = box.w * box.l;
@@ -107,8 +105,8 @@ var PackingEngine = (function () {
     return support / total >= 0.75;
   }
 
-  // Kırılğanın üstüne yasak + istif katman limiti
-  function stackingOk(placements, box, item) {
+  // Kırılğanın üstüne yasak + katman limiti (maxStack = toplam katman sayısı)
+  function stackingOk(placements, box, item, maxStack) {
     var level = 0;
     for (var i = 0; i < placements.length; i++) {
       var p = placements[i];
@@ -120,14 +118,13 @@ var PackingEngine = (function () {
         level = Math.max(level, p.stackLevel + 1);
       }
     }
-    if (level > item.maxStack) return false;
+    if (level >= maxStack) return false;
     box._stackLevel = level;
     return true;
   }
 
   function tryPlace(vehicle, item, spec) {
     var rotations = getRotations(item);
-    // sütun sütun dolum: öndeki sütun yukarı dolar, sonra arkaya geçer
     var points = vehicle.points.slice().sort(function (a, b) {
       return a.z - b.z || a.x - b.x || a.y - b.y;
     });
@@ -139,9 +136,18 @@ var PackingEngine = (function () {
         if (box.x + box.w > spec.w + 0.01) continue;
         if (box.y + box.h > spec.h + 0.01) continue;
         if (box.z + box.l > spec.l + 0.01) continue;
+
+        // ═══ OTOMATİK İSTİF ═══
+        // Bu duruşta üst üste kaç katman fiziksel olarak sığar?
+        var autoStack = Math.max(1, Math.floor(spec.h / box.h));
+        // Kullanıcı kısıtı varsa ikisinden kısıtlayıcı olan kazanır
+        var effMaxStack = item.maxStackInput !== null
+          ? Math.min(item.maxStackInput, autoStack)
+          : autoStack;
+
         if (collides(vehicle.placements, box)) continue;
         if (!supported(vehicle.placements, box)) continue;
-        if (!stackingOk(vehicle.placements, box, item)) continue;
+        if (!stackingOk(vehicle.placements, box, item, effMaxStack)) continue;
 
         vehicle.placements.push({
           x: box.x, y: box.y, z: box.z, w: box.w, l: box.l, h: box.h,
