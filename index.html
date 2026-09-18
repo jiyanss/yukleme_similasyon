@@ -24,7 +24,7 @@
   .ghost { width:100%; margin-top:8px; padding:9px; background:transparent; border:1px solid #334155; border-radius:10px; color:#94a3b8; font-size:13px; }
   .ghost:hover { border-color:#3b82f6; color:#e2e8f0; }
   label { display:block; font-size:12px; color:#94a3b8; margin:10px 0 4px; }
-  select, input[type=number] { width:100%; padding:9px; background:#0b1220; border:1px solid #334155; border-radius:8px; color:#e2e8f0; font-size:13px; }
+  select, input[type=number], input[type=text] { width:100%; padding:9px; background:#0b1220; border:1px solid #334155; border-radius:8px; color:#e2e8f0; font-size:13px; }
   .dims { display:flex; gap:8px; }
   .dims > div { flex:1; }
   table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
@@ -60,7 +60,7 @@
 
 <header>
   <h1>🚛 Araç Yükleme Simülatörü</h1>
-  <span class="subtitle">Excel yükle → araç seç → 3D simülasyon</span>
+  <span class="subtitle">Şablon indir → Excel doldur → araç seç → 3D simülasyon</span>
 </header>
 
 <main>
@@ -69,6 +69,7 @@
       <h2>1. Yükleme Listesi</h2>
       <div id="dropzone">📁 Excel/CSV dosyasını buraya <b>sürükle</b> veya <b>tıklayıp seç</b></div>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+      <button id="tplBtn" class="ghost">⬇ Excel şablonu indir</button>
       <button id="demoBtn" class="ghost">🧪 Örnek veri ile dene</button>
       <div id="parseErrors"></div>
       <div id="tableWrap" class="hidden">
@@ -86,14 +87,22 @@
       <h2>2. Araç Seçimi</h2>
       <label>Araç tipi</label>
       <select id="vehicleSelect"></select>
-      <div id="customDims" class="dims hidden">
-        <div><label>En (cm)</label><input type="number" id="cw"></div>
-        <div><label>Boy (cm)</label><input type="number" id="cl"></div>
-        <div><label>Yüks. (cm)</label><input type="number" id="ch"></div>
+      <div id="customDims" class="hidden">
+        <div id="customNameWrap" class="hidden">
+          <label>Araç adı</label>
+          <input type="text" id="cname" value="Özel Araç">
+        </div>
+        <label>İç ölçüler (cm)</label>
+        <div class="dims">
+          <div><label>En</label><input type="number" id="cw" placeholder="örn: 245"></div>
+          <div><label>Boy</label><input type="number" id="cl" placeholder="örn: 1200"></div>
+          <div><label>Yüks.</label><input type="number" id="ch" placeholder="örn: 260"></div>
+        </div>
       </div>
       <label>Araç adedi (1-20)</label>
       <input type="number" id="vCount" value="2" min="1" max="20">
       <button id="runBtn" class="primary" style="margin-top:14px">▶ Simülasyonu Başlat</button>
+      <p class="hint">💡 Dolum her zaman <b>aracın önünden başlar, arkaya (kapıya) doğru</b> dolar.</p>
     </section>
   </aside>
 
