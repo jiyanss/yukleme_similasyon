@@ -38,15 +38,20 @@
   #vehicleTabs { display:flex; gap:6px; flex-wrap:wrap; }
   .tab { padding:7px 12px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
   .tab.active { background:#1d3a6b; border-color:#3b82f6; color:#fff; }
-  #animControls { display:flex; align-items:center; gap:8px; font-size:12px; color:#94a3b8; }
+  #animControls { display:flex; align-items:center; gap:8px; font-size:12px; color:#94a3b8; flex-wrap:wrap; }
   #loadSlider { width:150px; accent-color:#3b82f6; }
-  #playBtn { padding:6px 10px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
+  #playBtn, #speedLabel { padding:6px 10px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
+  #speedSelect { width:auto; padding:5px 8px; }
   #vehInfo { font-size:12px; color:#64748b; }
   #canvasWrap { position:relative; flex:1; min-height:340px; background:#0b1220; border:1px solid #1e293b; border-radius:12px; overflow:hidden; }
   #canvasWrap canvas { display:block; }
   #tooltip { position:absolute; pointer-events:none; background:rgba(30,41,59,.95); border:1px solid #334155; padding:8px 10px; border-radius:8px; font-size:12px; display:none; z-index:5; line-height:1.5; }
-  #statsBar { display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:#94a3b8; }
+  #statsBar { display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:13px; color:#94a3b8; }
   #statsBar b { color:#60a5fa; }
+  #volBadge { display:flex; align-items:baseline; gap:8px; background:#111a2e; border:1px solid #1e293b; border-radius:10px; padding:8px 14px; }
+  #volBadge .big { font-size:22px; font-weight:700; color:#4ade80; }
+  #volBadge .unit { font-size:12px; color:#94a3b8; }
+  #volBadge .pct { font-size:14px; font-weight:600; color:#60a5fa; }
   #legend { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; }
   .chip { display:flex; align-items:center; gap:5px; background:#111a2e; border:1px solid #1e293b; padding:3px 9px; border-radius:99px; }
   .swatch { width:10px; height:10px; border-radius:3px; }
@@ -102,7 +107,7 @@
       <label>Araç adedi (1-20)</label>
       <input type="number" id="vCount" value="2" min="1" max="20">
       <button id="runBtn" class="primary" style="margin-top:14px">▶ Simülasyonu Başlat</button>
-      <p class="hint">💡 Dolum her zaman <b>aracın önünden başlar, arkaya (kapıya) doğru</b> dolar.</p>
+      <p class="hint">💡 Dolum <b>öndeki sütun yukarı istiflenerek</b> başlar, sütunlar arkaya (kapıya) doğru sırayla dolar.</p>
     </section>
   </aside>
 
@@ -113,11 +118,26 @@
         <button id="playBtn">⏵ Yükleme animasyonu</button>
         <input type="range" id="loadSlider" min="0" max="0" value="0">
         <span id="sliderLabel">—</span>
+        <span id="speedLabel">Hız:</span>
+        <select id="speedSelect">
+          <option value="1">1x</option>
+          <option value="2" selected>2x</option>
+          <option value="5">5x</option>
+          <option value="10">10x</option>
+          <option value="25">25x</option>
+        </select>
       </div>
     </div>
     <div id="vehInfo"></div>
     <div id="canvasWrap"><div id="tooltip"></div></div>
-    <div id="statsBar"></div>
+    <div id="statsBar">
+      <div id="volBadge">
+        <span class="big"><span id="volStat">0.0</span> m³</span>
+        <span class="unit">/ <span id="capStat">0</span> m³</span>
+        <span class="pct">%<span id="fillStat">0</span></span>
+      </div>
+      <div id="statsRest" style="display:flex; gap:18px; flex-wrap:wrap;"></div>
+    </div>
     <div id="legend"></div>
     <div id="unplacedBox" class="hidden">
       <h3>⚠ Yüklenemeyen ürünler</h3>
