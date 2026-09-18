@@ -12,12 +12,11 @@ const VEHICLE_TYPES = [
 ];
 
 const DEMO = [
-  { UrunKod: "Buzdolabi", En: 70, Boy: 75, Yukseklik: 180, Adet: 10, Kural: "DIK", Istif: "" },
-  { UrunKod: "TV-55", En: 140, Boy: 25, Yukseklik: 85, Adet: 15, Kural: "KIRILGAN", Istif: "" },
-  { UrunKod: "Koli-A", En: 40, Boy: 60, Yukseklik: 50, Adet: 100, Kural: "", Istif: 4 },
-  { UrunKod: "Koli-B", En: 50, Boy: 50, Yukseklik: 40, Adet: 80, Kural: "", Istif: 5 },
-  { UrunKod: "Sandik", En: 80, Boy: 80, Yukseklik: 60, Adet: 20, Kural: "YERDE", Istif: "" },
-  { UrunKod: "CamasirMak", En: 60, Boy: 60, Yukseklik: 85, Adet: 12, Kural: "DIK", Istif: "" },
+  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 10, Kural: "STANDART", Istif: 3 },
+  { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: 4 },
+  { UrunKod: "Komodin",    En: 180, Boy: 110, Yukseklik: 16, Adet: 20, Kural: "STANDART", Istif: 5 },
+  { UrunKod: "Markiz",     En: 40,  Boy: 40,  Yukseklik: 40, Adet: 10, Kural: "KIRILGAN", Istif: "" },
+  { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "KIRILGAN", Istif: "" },
 ];
 
 const state = { packages: [], result: null, activeVehicle: 0 };
