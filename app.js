@@ -12,15 +12,15 @@ const VEHICLE_TYPES = [
 ];
 
 const DEMO = [
-  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 10, Kural: "STANDART", Istif: 3 },
-  { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: 4 },
-  { UrunKod: "Komodin",    En: 180, Boy: 110, Yukseklik: 16, Adet: 20, Kural: "STANDART", Istif: 5 },
-  { UrunKod: "Markiz",     En: 40,  Boy: 40,  Yukseklik: 40, Adet: 10, Kural: "KIRILGAN", Istif: "" },
-  { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "KIRILGAN", Istif: "" },
+  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 10, Kural: "STANDART", Istif: 3, Yukleme: "BOYUNA" },
+  { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: 4, Yukleme: "ENINE" },
+  { UrunKod: "Komodin",    En: 180, Boy: 110, Yukseklik: 16, Adet: 20, Kural: "STANDART", Istif: 5, Yukleme: "" },
+  { UrunKod: "Markiz",     En: 40,  Boy: 40,  Yukseklik: 40, Adet: 10, Kural: "KIRILGAN", Istif: "", Yukleme: "" },
+  { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "KIRILGAN", Istif: "", Yukleme: "" },
 ];
 
 const state = { packages: [], result: null, activeVehicle: 0 };
-let editingIndex = -1; // -1 = yeni ekleme, >=0 = satır düzenleme
+let editingIndex = -1;
 const $ = (id) => document.getElementById(id);
 
 function capVolume() {
@@ -36,6 +36,7 @@ function resetForm() {
   $("mAdet").value = 1;
   $("mKural").value = "STANDART";
   $("mIstif").value = "";
+  $("mYukleme").value = "";
   $("addBtn").textContent = "+ Ekle";
   $("cancelEditBtn").classList.add("hidden");
   $("mUrunKod").focus();
@@ -50,6 +51,7 @@ function startEdit(i) {
   $("mAdet").value = p.Adet;
   $("mKural").value = p.Kural || "STANDART";
   $("mIstif").value = p.Istif || "";
+  $("mYukleme").value = p.Yukleme || "";
   editingIndex = i;
   $("addBtn").textContent = "✔ Güncelle";
   $("cancelEditBtn").classList.remove("hidden");
@@ -64,6 +66,7 @@ function startEdit(i) {
   const pkg = {
     UrunKod: code, En: w, Boy: l, Yukseklik: h, Adet: qty,
     Kural: $("mKural").value, Istif: $("mIstif").value,
+    Yukleme: $("mYukleme").value,
   };
   if (editingIndex >= 0) state.packages[editingIndex] = pkg;
   else state.packages.push(pkg);
@@ -73,7 +76,6 @@ function startEdit(i) {
 
  $("cancelEditBtn").addEventListener("click", resetForm);
 
-// Formdayken Enter = Ekle/Güncelle
 document.querySelector(".mform").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); $("addBtn").click(); }
 });
@@ -83,14 +85,14 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
   if (typeof XLSX === "undefined") { alert("Excel kütüphanesi yüklenemedi (internet engeli olabilir)."); return; }
   const wb = XLSX.utils.book_new();
   const data = [
-    ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif"],
-    ["TV-55", 140, 25, 85, 4, "KIRILGAN", ""],
-    ["Buzdolabi", 70, 75, 180, 2, "DIK", ""],
-    ["Koli-A", 40, 60, 50, 100, "", 4],
-    ["Sandik", 80, 80, 60, 10, "YERDE", ""],
+    ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif", "Yukleme"],
+    ["Yatak", 160, 200, 30, 5, "", 3, "BOYUNA"],
+    ["BazaBaslik", 90, 200, 20, 5, "", 4, "ENINE"],
+    ["Komodin", 180, 110, 16, 10, "", 5, ""],
+    ["Markiz", 40, 40, 40, 5, "KIRILGAN", "", ""],
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws["!cols"] = [{ wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 7 }, { wch: 12 }, { wch: 8 }];
+  ws["!cols"] = [{ wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 7 }, { wch: 12 }, { wch: 8 }, { wch: 10 }];
   XLSX.utils.book_append_sheet(wb, ws, "YuklemeListesi");
   const help = [
     ["ALAN", "AÇIKLAMA"],
@@ -99,12 +101,15 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
     ["Adet", "Kaç adet yüklenecek (boşsa 1)"],
     ["Kural", "STANDART / KIRILGAN / DIK / YERDE (boşsa STANDART)"],
     ["Istif", "Üstüne maksimum kaç paket konabilir (boşsa 5)"],
+    ["Yukleme", "ENINE / BOYUNA (boşsa serbest dönüş)"],
     [],
-    ["KURAL", "ANLAMI"],
+    ["KURAL / YÖN", "ANLAMI"],
     ["STANDART", "Serbest döner, istiflenebilir"],
     ["KIRILGAN", "Üstüne hiçbir paket konamaz"],
     ["DIK", "Döndürülemez, sadece dik durur"],
     ["YERDE", "En alt katmanda durur"],
+    ["ENINE", "Paketin BOY ölçüsü aracın genişliğine yatar"],
+    ["BOYUNA", "Paketin BOY ölçüsü aracın uzunluğuna paralel durur"],
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(help);
   ws2["!cols"] = [{ wch: 22 }, { wch: 52 }];
@@ -121,12 +126,22 @@ const COLS = {
   Adet: ["adet", "miktar", "qty"],
   Kural: ["kural", "yuklemekurali"],
   Istif: ["istif", "maxistif", "istifsayisi"],
+  Yukleme: ["yukleme", "yuklemeyonu", "yukyonu", "yuklemesekli", "yon"],
 };
+
+// Türkçe karakterleri ayıkla: "Yükleme" → "yukleme" gibi eşleşsin
+function normKey(k) {
+  return k.toLowerCase()
+    .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ş/g, "s").replace(/Ş/g, "s")
+    .replace(/ğ/g, "g").replace(/Ğ/g, "g").replace(/ü/g, "u").replace(/Ü/g, "u")
+    .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")
+    .replace(/[\s_.]/g, "");
+}
 
 function pickCol(row, candidates) {
   const keys = Object.keys(row);
   for (const c of candidates) {
-    const k = keys.find((key) => key.toLowerCase().replace(/[\s_.]/g, "") === c);
+    const k = keys.find((key) => normKey(key) === c);
     if (k !== undefined && String(row[k]).trim() !== "") return String(row[k]).trim();
   }
   return "";
@@ -137,6 +152,14 @@ function num(v) {
   return isNaN(n) ? 0 : n;
 }
 
+function normDir(v) {
+  const s = String(v).trim().toUpperCase().replace(/İ/g, "I").replace(/Ş/g, "S");
+  if (!s) return "";
+  if (s.includes("ENINE") || s === "EN") return "ENINE";
+  if (s.includes("BOY")) return "BOYUNA";
+  return "";
+}
+
 function parseRows(rows) {
   const good = [], errors = [];
   rows.forEach((row, idx) => {
@@ -145,14 +168,15 @@ function parseRows(rows) {
     const l = num(pickCol(row, COLS.Boy));
     const h = num(pickCol(row, COLS.Yukseklik));
     const qty = Math.round(num(pickCol(row, COLS.Adet)) || 1);
-    let rule = pickCol(row, COLS.Kural).toUpperCase();
+    let rule = pickCol(row, COLS.Kural).toUpperCase().replace(/İ/g, "I").replace(/Ş/g, "S");
     if (!["STANDART", "KIRILGAN", "DIK", "YERDE"].includes(rule)) rule = "STANDART";
     const stack = pickCol(row, COLS.Istif);
+    const yukleme = normDir(pickCol(row, COLS.Yukleme));
     if (!code || !w || !l || !h) {
       errors.push(`Satır ${idx + 2}: eksik/hatalı veri (Ürün kodu + En/Boy/Yükseklik gerekli)`);
       return;
     }
-    good.push({ UrunKod: code, En: w, Boy: l, Yukseklik: h, Adet: qty, Kural: rule, Istif: stack });
+    good.push({ UrunKod: code, En: w, Boy: l, Yukseklik: h, Adet: qty, Kural: rule, Istif: stack, Yukleme: yukleme });
   });
   return { good, errors };
 }
@@ -166,10 +190,10 @@ function handleFile(file) {
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
       const { good, errors } = parseRows(rows);
       if (!good.length) {
-        showErrors([...errors, "Geçerli satır yok. İlk satır başlık olmalı: UrunKod, En, Boy, Yukseklik, Adet, Kural, Istif"]);
+        showErrors([...errors, "Geçerli satır yok. İlk satır başlık olmalı: UrunKod, En, Boy, Yukseklik, Adet, Kural, Istif, Yukleme"]);
         return;
       }
-      state.packages = state.packages.concat(good); // mevcut listeye ekler
+      state.packages = state.packages.concat(good);
       resetForm();
       renderTable();
       showErrors(errors);
@@ -191,7 +215,7 @@ function renderTable() {
     total += p.Adet;
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${p.UrunKod}</td><td>${p.En}</td><td>${p.Boy}</td><td>${p.Yukseklik}</td>` +
-      `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "-"}</td>` +
+      `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "-"}</td><td>${p.Yukleme || "-"}</td>` +
       `<td><button class="edit" data-i="${i}" title="Düzenle">✎</button> ` +
       `<button class="del" data-i="${i}" title="Sil">✕</button></td>`;
     tb.appendChild(tr);
@@ -355,7 +379,6 @@ function textSprite(text, color, w, h) {
   return sp;
 }
 
-// ─── Araç üstü canlı hacim etiketi ───
 function makeVehLabel(spec) {
   const c = document.createElement("canvas");
   c.width = 1200; c.height = 180;
@@ -406,7 +429,6 @@ function buildScene() {
   disposeGroup(boxGroup);
   meshes = [];
 
-  // zemin + grid
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(spec.w, spec.l),
     new THREE.MeshLambertMaterial({ color: 0x16223b })
@@ -418,7 +440,6 @@ function buildScene() {
   grid.position.set(spec.w / 2, 0.5, spec.l / 2);
   sceneGroup.add(grid);
 
-  // araç konturu
   const bgeo = new THREE.BoxGeometry(spec.w, spec.h, spec.l);
   const outline = new THREE.LineSegments(
     new THREE.EdgesGeometry(bgeo),
@@ -428,7 +449,6 @@ function buildScene() {
   sceneGroup.add(outline);
   bgeo.dispose();
 
-  // ÖN şeridi (dolum başlangıcı)
   const startStrip = new THREE.Mesh(
     new THREE.PlaneGeometry(spec.w, Math.min(8, spec.l * 0.05)),
     new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
@@ -437,7 +457,6 @@ function buildScene() {
   startStrip.position.set(spec.w / 2, 0.8, Math.min(4, spec.l * 0.03));
   sceneGroup.add(startStrip);
 
-  // KAPI çerçevesi
   const doorGeo = new THREE.PlaneGeometry(spec.w, spec.h);
   const door = new THREE.LineSegments(
     new THREE.EdgesGeometry(doorGeo),
@@ -447,7 +466,6 @@ function buildScene() {
   sceneGroup.add(door);
   doorGeo.dispose();
 
-  // yön oku + etiketler
   const arrowLen = Math.min(spec.l * 0.35, 250);
   sceneGroup.add(new THREE.ArrowHelper(
     new THREE.Vector3(0, 0, 1),
@@ -462,10 +480,8 @@ function buildScene() {
   sBack.position.set(spec.w / 2, spec.h * 0.9, spec.l + lblW * 0.6);
   sceneGroup.add(sBack);
 
-  // araç üstü hacim etiketi
   vehLabel = makeVehLabel(spec);
 
-  // paketler
   const edgeMat = new THREE.LineBasicMaterial({ color: 0x0b1220, transparent: true, opacity: 0.4 });
   v.placements.forEach((p, idx) => {
     const geo = new THREE.BoxGeometry(p.w, p.h, p.l);
@@ -475,6 +491,7 @@ function buildScene() {
       name: p.pkg.name,
       dims: `${p.w}×${p.l}×${p.h} cm`,
       rule: p.pkg.rule,
+      dir: p.pkg.loadDir === "ENINE" ? "Enine" : p.pkg.loadDir === "BOYUNA" ? "Boyuna" : "Serbest",
       level: p.stackLevel + 1,
       order: idx + 1,
       vol: (p.w * p.h * p.l) / 1e6,
@@ -484,7 +501,6 @@ function buildScene() {
     meshes.push(mesh);
   });
 
-  // kamera
   camCtl.center = { x: spec.w / 2, y: spec.h * 0.4, z: spec.l / 2 };
   camCtl.radius = Math.hypot(spec.w, spec.h, spec.l) * 1.15;
   camCtl.theta = Math.PI / 4;
@@ -543,7 +559,7 @@ function hover(e, el) {
   const hits = raycaster.intersectObjects(meshes.filter((m) => m.visible), false);
   if (hits.length) {
     const d = hits[0].object.userData;
-    tip.innerHTML = `<b>${d.name}</b> • ${d.order}. yüklenen • ${d.vol.toFixed(3)} m³<br>${d.dims}<br>Kural: ${d.rule} • Katman ${d.level}`;
+    tip.innerHTML = `<b>${d.name}</b> • ${d.order}. yüklenen • ${d.vol.toFixed(3)} m³<br>${d.dims}<br>Kural: ${d.rule} • Yön: ${d.dir} • Katman ${d.level}`;
     tip.style.display = "block";
     tip.style.left = Math.min(rect.width - 230, e.clientX - rect.left + 14) + "px";
     tip.style.top = e.clientY - rect.top + 14 + "px";
