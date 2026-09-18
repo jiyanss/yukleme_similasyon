@@ -12,9 +12,9 @@ const VEHICLE_TYPES = [
 ];
 
 const DEMO = [
-  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 10, Kural: "STANDART", Istif: 3, Yukleme: "BOYUNA" },
-  { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: 4, Yukleme: "ENINE" },
-  { UrunKod: "Komodin",    En: 180, Boy: 110, Yukseklik: 16, Adet: 20, Kural: "STANDART", Istif: 5, Yukleme: "" },
+  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 10, Kural: "STANDART", Istif: "", Yukleme: "BOYUNA" },
+  { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: "", Yukleme: "ENINE" },
+  { UrunKod: "Komodin",    En: 180, Boy: 110, Yukseklik: 16, Adet: 20, Kural: "STANDART", Istif: "", Yukleme: "" },
   { UrunKod: "Markiz",     En: 40,  Boy: 40,  Yukseklik: 40, Adet: 10, Kural: "KIRILGAN", Istif: "", Yukleme: "" },
   { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "KIRILGAN", Istif: "", Yukleme: "" },
 ];
@@ -86,9 +86,9 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
   const wb = XLSX.utils.book_new();
   const data = [
     ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif", "Yukleme"],
-    ["Yatak", 160, 200, 30, 5, "", 3, "BOYUNA"],
-    ["BazaBaslik", 90, 200, 20, 5, "", 4, "ENINE"],
-    ["Komodin", 180, 110, 16, 10, "", 5, ""],
+    ["Yatak", 160, 200, 30, 5, "", "", "BOYUNA"],
+    ["BazaBaslik", 90, 200, 20, 5, "", "", "ENINE"],
+    ["Komodin", 180, 110, 16, 10, "", "", ""],
     ["Markiz", 40, 40, 40, 5, "KIRILGAN", "", ""],
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
@@ -100,7 +100,7 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
     ["En / Boy / Yukseklik", "Paket ölçüleri cm (zorunlu)"],
     ["Adet", "Kaç adet yüklenecek (boşsa 1)"],
     ["Kural", "STANDART / KIRILGAN / DIK / YERDE (boşsa STANDART)"],
-    ["Istif", "Üstüne maksimum kaç paket konabilir (boşsa 5)"],
+    ["Istif", "Üst üste maksimum katman sayısı (boşsa OTOMATİK: araç yüksekliğine göre hesaplanır)"],
     ["Yukleme", "ENINE / BOYUNA (boşsa serbest dönüş)"],
     [],
     ["KURAL / YÖN", "ANLAMI"],
@@ -215,7 +215,7 @@ function renderTable() {
     total += p.Adet;
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${p.UrunKod}</td><td>${p.En}</td><td>${p.Boy}</td><td>${p.Yukseklik}</td>` +
-      `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "-"}</td><td>${p.Yukleme || "-"}</td>` +
+      `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "oto"}</td><td>${p.Yukleme || "-"}</td>` +
       `<td><button class="edit" data-i="${i}" title="Düzenle">✎</button> ` +
       `<button class="del" data-i="${i}" title="Sil">✕</button></td>`;
     tb.appendChild(tr);
