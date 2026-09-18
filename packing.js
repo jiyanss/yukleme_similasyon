@@ -36,7 +36,7 @@ var PackingEngine = (function () {
   }
 
   // İzinli dönüşler. d = [En, Boy, Yükseklik]
-  // Permütasyon sırası [w, l, h]: w=araç genişliği, l=araç uzunluğu, h=dikey
+  // w = araç genişliği (x), l = araç uzunluğu (z), h = dikey (y)
   function getRotations(item) {
     if (item.rule === "DIK") return [{ w: item.w, l: item.l, h: item.h }];
 
@@ -68,6 +68,17 @@ var PackingEngine = (function () {
     perms.forEach(function (pm) {
       var key = pm.join("|");
       if (!seen[key]) { seen[key] = 1; out.push({ w: pm[0], l: pm[1], h: pm[2] }); }
+    });
+
+    // ═══ AKILLI SIRALAMA (serbest modun kalbi) ═══
+    // 1) Aracın enini EN ÇOK kullanan dönüş önce denenir
+    //    → yan şerit minimal kalır (örn: 245 ene 200 sığar, 45cm şerit açılır)
+    // 2) Eşitlikte taban alanı büyük (yatay duruş) önce → sağlam istif
+    // Böylece 160x200 parça önce ENINE uzanır; açılan şeriğe sıradaki
+    // parçalar DIKİNE yerleşerek boşluğu doldurur.
+    out.sort(function (a, b) {
+      if (b.w !== a.w) return b.w - a.w;
+      return (b.w * b.l) - (a.w * a.l);
     });
     return out;
   }
