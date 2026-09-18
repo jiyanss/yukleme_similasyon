@@ -83,7 +83,7 @@ function pickCol(row, candidates) {
 }
 
 function num(v) {
-  const n = parseFloat(String(v).replace(",", "."));
+  const n = parseFloat(String(v).replace(",", ".")); // TR ondalık virgülü
   return isNaN(n) ? 0 : n;
 }
 
@@ -493,7 +493,7 @@ function hover(e, el) {
   } else tip.style.display = "none";
 }
 
-// ─── Animasyon + hız kontrolü ───
+// ─── Animasyon + hız kontrolü (0.25x – 2x) ───
 let playTimer = null;
 function stopPlay() {
   if (playTimer) { clearInterval(playTimer); playTimer = null; $("playBtn").textContent = "⏵ Yükleme animasyonu"; }
@@ -517,18 +517,19 @@ function startPlay(keepPos) {
   if (!keepPos) { sl.value = 0; applyVisibility(0); }
   const speed = +$("speedSelect").value || 1;
   const step = Math.max(1, Math.ceil((meshes.length / 150) * speed));
+  const interval = Math.max(12, 30 / speed); // yavaş hızlar gerçekten yavaş aksın
   $("playBtn").textContent = "⏸ Durdur";
   playTimer = setInterval(() => {
     const nv = Math.min(meshes.length, +sl.value + step);
     sl.value = nv;
     applyVisibility(nv);
     if (nv >= meshes.length) stopPlay();
-  }, 25);
+  }, interval);
 }
 
  $("playBtn").addEventListener("click", () => (playTimer ? stopPlay() : startPlay(false)));
  $("speedSelect").addEventListener("change", () => {
-  if (playTimer) { startPlay(true); } // animasyon sürerken hız anında değişir, kaldığı yerden devam eder
+  if (playTimer) startPlay(true); // animasyon sürerken hız değişirse kaldığı yerden devam
 });
  $("loadSlider").addEventListener("input", (e) => { stopPlay(); applyVisibility(+e.target.value); });
 
