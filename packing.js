@@ -94,7 +94,8 @@ var PackingEngine = (function () {
     var rotations = getRotations(item);
     // alttan ve önden başla → taban dolu ve doğal görünüm
     var points = vehicle.points.slice().sort(function (a, b) {
-      return a.y - b.y || a.z - b.z || a.x - b.x;
+      // YENİ (sütun sütun dolum: öndeki sütun yukarı dolar, sonra arkaya geçer):
+      return a.z - b.z || a.x - b.x || a.y - b.y;
     });
     for (var pi = 0; pi < points.length; pi++) {
       var pt = points[pi];
