@@ -21,12 +21,63 @@ const DEMO = [
 ];
 
 const state = { packages: [], result: null, activeVehicle: 0 };
+let editingIndex = -1; // -1 = yeni ekleme, >=0 = satır düzenleme
 const $ = (id) => document.getElementById(id);
 
 function capVolume() {
   const s = state.result?.spec;
   return s ? (s.w * s.h * s.l) / 1e6 : 0;
 }
+
+// ═══════════ Manuel giriş ═══════════
+function resetForm() {
+  editingIndex = -1;
+  $("mUrunKod").value = "";
+  $("mEn").value = ""; $("mBoy").value = ""; $("mYukseklik").value = "";
+  $("mAdet").value = 1;
+  $("mKural").value = "STANDART";
+  $("mIstif").value = "";
+  $("addBtn").textContent = "+ Ekle";
+  $("cancelEditBtn").classList.add("hidden");
+  $("mUrunKod").focus();
+}
+
+function startEdit(i) {
+  const p = state.packages[i];
+  $("mUrunKod").value = p.UrunKod;
+  $("mEn").value = p.En;
+  $("mBoy").value = p.Boy;
+  $("mYukseklik").value = p.Yukseklik;
+  $("mAdet").value = p.Adet;
+  $("mKural").value = p.Kural || "STANDART";
+  $("mIstif").value = p.Istif || "";
+  editingIndex = i;
+  $("addBtn").textContent = "✔ Güncelle";
+  $("cancelEditBtn").classList.remove("hidden");
+  $("mUrunKod").focus();
+}
+
+ $("addBtn").addEventListener("click", () => {
+  const code = $("mUrunKod").value.trim();
+  const w = num($("mEn").value), l = num($("mBoy").value), h = num($("mYukseklik").value);
+  if (!code || !w || !l || !h) { alert("Ürün kodu ile En/Boy/Yükseklik alanları zorunludur."); return; }
+  const qty = Math.max(1, Math.round(num($("mAdet").value) || 1));
+  const pkg = {
+    UrunKod: code, En: w, Boy: l, Yukseklik: h, Adet: qty,
+    Kural: $("mKural").value, Istif: $("mIstif").value,
+  };
+  if (editingIndex >= 0) state.packages[editingIndex] = pkg;
+  else state.packages.push(pkg);
+  resetForm();
+  renderTable();
+});
+
+ $("cancelEditBtn").addEventListener("click", resetForm);
+
+// Formdayken Enter = Ekle/Güncelle
+document.querySelector(".mform").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); $("addBtn").click(); }
+});
 
 // ═══════════ Excel şablonu indir ═══════════
  $("tplBtn").addEventListener("click", () => {
@@ -119,7 +170,8 @@ function handleFile(file) {
         showErrors([...errors, "Geçerli satır yok. İlk satır başlık olmalı: UrunKod, En, Boy, Yukseklik, Adet, Kural, Istif"]);
         return;
       }
-      state.packages = good;
+      state.packages = state.packages.concat(good); // mevcut listeye ekler
+      resetForm();
       renderTable();
       showErrors(errors);
     } catch (err) { alert("Dosya okunamadı: " + err.message); }
@@ -141,7 +193,8 @@ function renderTable() {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${p.UrunKod}</td><td>${p.En}</td><td>${p.Boy}</td><td>${p.Yukseklik}</td>` +
       `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "-"}</td>` +
-      `<td><button class="del" data-i="${i}" title="Sil">✕</button></td>`;
+      `<td><button class="edit" data-i="${i}" title="Düzenle">✎</button> ` +
+      `<button class="del" data-i="${i}" title="Sil">✕</button></td>`;
     tb.appendChild(tr);
   });
   $("pkgCount").textContent = state.packages.length
@@ -150,15 +203,20 @@ function renderTable() {
 }
 
  $("pkgBody").addEventListener("click", (e) => {
+  const i = +e.target.dataset.i;
   if (e.target.classList.contains("del")) {
-    state.packages.splice(+e.target.dataset.i, 1);
+    state.packages.splice(i, 1);
+    if (editingIndex === i) resetForm();
     renderTable();
+  } else if (e.target.classList.contains("edit")) {
+    startEdit(i);
+    $("tableWrap").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 });
 
 // ═══════════ Simülasyon ═══════════
 function runSim() {
-  if (!state.packages.length) { alert("Önce yükleme listesi ekleyin (Excel veya örnek veri)."); return; }
+  if (!state.packages.length) { alert("Önce yükleme listesine ürün ekleyin (manuel veya Excel)."); return; }
   const vi = +$("vehicleSelect").value;
   let spec = { ...VEHICLE_TYPES[vi] };
   if (spec.id === "parsiyel" || spec.id === "custom") {
@@ -517,7 +575,7 @@ function startPlay(keepPos) {
   if (!keepPos) { sl.value = 0; applyVisibility(0); }
   const speed = +$("speedSelect").value || 1;
   const step = Math.max(1, Math.ceil((meshes.length / 150) * speed));
-  const interval = Math.max(12, 30 / speed); // yavaş hızlar gerçekten yavaş aksın
+  const interval = Math.max(12, 30 / speed);
   $("playBtn").textContent = "⏸ Durdur";
   playTimer = setInterval(() => {
     const nv = Math.min(meshes.length, +sl.value + step);
@@ -529,7 +587,7 @@ function startPlay(keepPos) {
 
  $("playBtn").addEventListener("click", () => (playTimer ? stopPlay() : startPlay(false)));
  $("speedSelect").addEventListener("change", () => {
-  if (playTimer) startPlay(true); // animasyon sürerken hız değişirse kaldığı yerden devam
+  if (playTimer) startPlay(true);
 });
  $("loadSlider").addEventListener("input", (e) => { stopPlay(); applyVisibility(+e.target.value); });
 
@@ -548,7 +606,7 @@ VEHICLE_TYPES.forEach((v, i) => {
 });
 
  $("runBtn").addEventListener("click", runSim);
- $("demoBtn").addEventListener("click", () => { state.packages = DEMO.map((d) => ({ ...d })); renderTable(); });
+ $("demoBtn").addEventListener("click", () => { state.packages = DEMO.map((d) => ({ ...d })); resetForm(); renderTable(); });
 
  $("fileInput").addEventListener("change", (e) => {
   if (e.target.files[0]) handleFile(e.target.files[0]);
