@@ -1,6 +1,6 @@
 "use strict";
 
-// ═══════════ Araç Tipleri — iç ölçüler cm, kendi filona göre buradan düzelt ═══════════
+// ═══════════ Araç Tipleri — iç ölçüler cm ═══════════
 const VEHICLE_TYPES = [
   { id: "tir",      name: "TIR 13.6m",          w: 245, l: 1360, h: 270, capacity: 25000 },
   { id: "c40hc",    name: "40HC Konteyner",     w: 235, l: 1203, h: 269, capacity: 26000 },
@@ -12,22 +12,26 @@ const VEHICLE_TYPES = [
 ];
 
 const DEMO = [
-  { UrunKod: "Yatak", En: 180, Boy: 200, Yukseklik: 35, Adet: 10, Kural: "YATAY", Istif: "" },
-  { UrunKod: "Baza", En: 90, Boy: 200, Yukseklik: 25, Adet: 15, Kural: "YATAY", Istif: "" },
-  { UrunKod: "BASLIK", En: 160, Boy: 110, Yukseklik: 15, Adet: 15, Kural: "", Istif: 4 },
-  { UrunKod: "KOMODIN", En: 50, Boy: 50, Yukseklik: 40, Adet: 15, Kural: "", Istif: 5 },
-  { UrunKod: "PED", En: 180, Boy: 200, Yukseklik: 4, Adet: 30, Kural: "YATAY", Istif: "" },
-  { UrunKod: "MARKIZ", En: 60, Boy: 60, Yukseklik: 85, Adet: 12, Kural: "DIK", Istif: "" },
+  { UrunKod: "Buzdolabi", En: 70, Boy: 75, Yukseklik: 180, Adet: 10, Kural: "DIK", Istif: "" },
+  { UrunKod: "TV-55", En: 140, Boy: 25, Yukseklik: 85, Adet: 15, Kural: "KIRILGAN", Istif: "" },
+  { UrunKod: "Koli-A", En: 40, Boy: 60, Yukseklik: 50, Adet: 100, Kural: "", Istif: 4 },
+  { UrunKod: "Koli-B", En: 50, Boy: 50, Yukseklik: 40, Adet: 80, Kural: "", Istif: 5 },
+  { UrunKod: "Sandik", En: 80, Boy: 80, Yukseklik: 60, Adet: 20, Kural: "YERDE", Istif: "" },
+  { UrunKod: "CamasirMak", En: 60, Boy: 60, Yukseklik: 85, Adet: 12, Kural: "DIK", Istif: "" },
 ];
 
 const state = { packages: [], result: null, activeVehicle: 0 };
 const $ = (id) => document.getElementById(id);
 
+function capVolume() {
+  const s = state.result?.spec;
+  return s ? (s.w * s.h * s.l) / 1e6 : 0;
+}
+
 // ═══════════ Excel şablonu indir ═══════════
  $("tplBtn").addEventListener("click", () => {
   if (typeof XLSX === "undefined") { alert("Excel kütüphanesi yüklenemedi (internet engeli olabilir)."); return; }
   const wb = XLSX.utils.book_new();
-
   const data = [
     ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif"],
     ["TV-55", 140, 25, 85, 4, "KIRILGAN", ""],
@@ -38,7 +42,6 @@ const $ = (id) => document.getElementById(id);
   const ws = XLSX.utils.aoa_to_sheet(data);
   ws["!cols"] = [{ wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 7 }, { wch: 12 }, { wch: 8 }];
   XLSX.utils.book_append_sheet(wb, ws, "YuklemeListesi");
-
   const help = [
     ["ALAN", "AÇIKLAMA"],
     ["UrunKod", "Paket kodu (zorunlu)"],
@@ -56,7 +59,6 @@ const $ = (id) => document.getElementById(id);
   const ws2 = XLSX.utils.aoa_to_sheet(help);
   ws2["!cols"] = [{ wch: 22 }, { wch: 52 }];
   XLSX.utils.book_append_sheet(wb, ws2, "Aciklama");
-
   XLSX.writeFile(wb, "yukleme-listesi-sablon.xlsx");
 });
 
@@ -81,7 +83,7 @@ function pickCol(row, candidates) {
 }
 
 function num(v) {
-  const n = parseFloat(String(v).replace(",", ".")); // TR ondalık virgülü
+  const n = parseFloat(String(v).replace(",", "."));
   return isNaN(n) ? 0 : n;
 }
 
@@ -193,14 +195,12 @@ function renderResults() {
 
   const s = res.stats[state.activeVehicle];
   const placed = res.vehicles.reduce((a, v) => a + v.placements.length, 0);
-  const capVol = ((res.spec.w * res.spec.h * res.spec.l) / 1e6).toFixed(1);
+  $("capStat").textContent = capVolume().toFixed(1);
   $("vehInfo").textContent =
     `${res.spec.name} — iç ölçü ${res.spec.w}×${res.spec.l}×${res.spec.h} cm — ` +
-    `dolum: önden (yeşil) arkaya, kapıya (turuncu) doğru`;
-  $("statsBar").innerHTML =
+    `dolum: ön sütunlar yukarı istiflenir, arkaya (kapıya) doğru dolar`;
+  $("statsRest").innerHTML =
     `<span>🚛 Araç ${state.activeVehicle + 1}: <b>${s.count}</b> paket</span>` +
-    `<span>Doluluk: <b>%${s.fillRate}</b></span>` +
-    `<span>Hacim: <b>${s.usedVolume}</b> / ${capVol} m³</span>` +
     `<span>Toplam yüklendi: <b>${placed}</b></span>` +
     `<span>Yüklenemeyen: <b>${res.unplaced.length}</b></span>`;
 
@@ -224,7 +224,7 @@ function renderResults() {
 }
 
 // ═══════════ 3D Sahne (Three.js) ═══════════
-let renderer = null, scene, camera, boxGroup, sceneGroup;
+let renderer = null, scene, camera, boxGroup, sceneGroup, vehLabel = null;
 let meshes = [];
 let camCtl = { theta: Math.PI / 4, phi: 1.05, radius: 800, center: { x: 0, y: 0, z: 0 } };
 const raycaster = new THREE.Raycaster();
@@ -283,7 +283,6 @@ function disposeGroup(g) {
   }
 }
 
-// Yazı etiketi (sprite) — ÖN / KAPI işaretleri için
 function textSprite(text, color, w, h) {
   const c = document.createElement("canvas");
   c.width = 512; c.height = 128;
@@ -297,6 +296,46 @@ function textSprite(text, color, w, h) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }));
   sp.scale.set(w, h, 1);
   return sp;
+}
+
+// ─── Araç üstü canlı hacim etiketi ───
+function makeVehLabel(spec) {
+  const c = document.createElement("canvas");
+  c.width = 1200; c.height = 180;
+  const tex = new THREE.CanvasTexture(c);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sp.scale.set(spec.w * 2.1, spec.w * 2.1 * (180 / 1200), 1);
+  sp.position.set(spec.w / 2, spec.h + spec.w * 0.28, spec.l / 2);
+  sp.userData = { canvas: c, tex };
+  sceneGroup.add(sp);
+  return sp;
+}
+
+function updateVehLabel(visibleCount) {
+  if (!vehLabel) return;
+  const { canvas, tex } = vehLabel.userData;
+  const g = canvas.getContext("2d");
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.fillStyle = "rgba(17,26,46,0.92)";
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.strokeStyle = "#3b82f6"; g.lineWidth = 8;
+  g.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+
+  let vol = 0;
+  for (let i = 0; i < visibleCount && i < meshes.length; i++) vol += meshes[i].userData.vol;
+  const cap = capVolume();
+  const pct = cap ? ((vol / cap) * 100).toFixed(1) : "0";
+
+  g.font = "bold 58px system-ui";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#4ade80";
+  g.fillText(`${vol.toFixed(1)} / ${cap.toFixed(1)} m³`, canvas.width / 2 - 200, canvas.height / 2);
+  g.fillStyle = "#60a5fa";
+  g.fillText(`Doluluk %${pct}`, canvas.width / 2 + 330, canvas.height / 2);
+  g.fillStyle = "#e2e8f0";
+  g.font = "bold 48px system-ui";
+  g.fillText(`Araç ${state.activeVehicle + 1}`, 190, canvas.height / 2);
+  tex.needsUpdate = true;
 }
 
 function buildScene() {
@@ -332,8 +371,7 @@ function buildScene() {
   sceneGroup.add(outline);
   bgeo.dispose();
 
-  // ── Dolum yönü işaretleri ──
-  // ÖN: yeşil şerit (dolum buradan başlar, z=0 ucu)
+  // ÖN şeridi (dolum başlangıcı)
   const startStrip = new THREE.Mesh(
     new THREE.PlaneGeometry(spec.w, Math.min(8, spec.l * 0.05)),
     new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
@@ -342,7 +380,7 @@ function buildScene() {
   startStrip.position.set(spec.w / 2, 0.8, Math.min(4, spec.l * 0.03));
   sceneGroup.add(startStrip);
 
-  // KAPI: turuncu çerçeve (z = boy ucu)
+  // KAPI çerçevesi
   const doorGeo = new THREE.PlaneGeometry(spec.w, spec.h);
   const door = new THREE.LineSegments(
     new THREE.EdgesGeometry(doorGeo),
@@ -352,15 +390,13 @@ function buildScene() {
   sceneGroup.add(door);
   doorGeo.dispose();
 
-  // Yön oku + etiketler
+  // yön oku + etiketler
   const arrowLen = Math.min(spec.l * 0.35, 250);
-  const arrow = new THREE.ArrowHelper(
+  sceneGroup.add(new THREE.ArrowHelper(
     new THREE.Vector3(0, 0, 1),
     new THREE.Vector3(spec.w / 2, 25, 15),
     arrowLen, 0x22c55e, arrowLen * 0.25, arrowLen * 0.12
-  );
-  sceneGroup.add(arrow);
-
+  ));
   const lblW = spec.w * 0.85, lblH = spec.w * 0.22;
   const sFront = textSprite("ÖN • dolum başlar", "#4ade80", lblW, lblH);
   sFront.position.set(spec.w / 2, spec.h * 0.9, -lblW * 0.6);
@@ -369,9 +405,12 @@ function buildScene() {
   sBack.position.set(spec.w / 2, spec.h * 0.9, spec.l + lblW * 0.6);
   sceneGroup.add(sBack);
 
-  // ── Paketler (yerleşim sırası = dolum sırası: önden arkaya) ──
+  // araç üstü hacim etiketi
+  vehLabel = makeVehLabel(spec);
+
+  // paketler
   const edgeMat = new THREE.LineBasicMaterial({ color: 0x0b1220, transparent: true, opacity: 0.4 });
-  v.placements.forEach((p) => {
+  v.placements.forEach((p, idx) => {
     const geo = new THREE.BoxGeometry(p.w, p.h, p.l);
     const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: colorFor(p.pkg.name) }));
     mesh.position.set(p.x + p.w / 2, p.y + p.h / 2, p.z + p.l / 2);
@@ -380,14 +419,15 @@ function buildScene() {
       dims: `${p.w}×${p.l}×${p.h} cm`,
       rule: p.pkg.rule,
       level: p.stackLevel + 1,
-      order: v.placements.indexOf(p) + 1,
+      order: idx + 1,
+      vol: (p.w * p.h * p.l) / 1e6,
     };
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
     boxGroup.add(mesh);
     meshes.push(mesh);
   });
 
-  // kamerayı araca göre konumlandır
+  // kamera
   camCtl.center = { x: spec.w / 2, y: spec.h * 0.4, z: spec.l / 2 };
   camCtl.radius = Math.hypot(spec.w, spec.h, spec.l) * 1.15;
   camCtl.theta = Math.PI / 4;
@@ -397,11 +437,11 @@ function buildScene() {
   const sl = $("loadSlider");
   sl.max = meshes.length;
   sl.value = meshes.length;
-  $("sliderLabel").textContent = meshes.length ? `${meshes.length} / ${meshes.length} paket` : "paket yok";
+  applyVisibility(meshes.length);
   stopPlay();
 }
 
-// ─── Kamera kontrolleri (döndür + zoom + hover bilgi) ───
+// ─── Kamera kontrolleri ───
 function updateCamera() {
   const { theta, phi, radius, center } = camCtl;
   camera.position.set(
@@ -446,37 +486,49 @@ function hover(e, el) {
   const hits = raycaster.intersectObjects(meshes.filter((m) => m.visible), false);
   if (hits.length) {
     const d = hits[0].object.userData;
-    tip.innerHTML = `<b>${d.name}</b> • ${d.order}. yüklenen<br>${d.dims}<br>Kural: ${d.rule} • Katman ${d.level}`;
+    tip.innerHTML = `<b>${d.name}</b> • ${d.order}. yüklenen • ${d.vol.toFixed(3)} m³<br>${d.dims}<br>Kural: ${d.rule} • Katman ${d.level}`;
     tip.style.display = "block";
-    tip.style.left = Math.min(rect.width - 190, e.clientX - rect.left + 14) + "px";
+    tip.style.left = Math.min(rect.width - 230, e.clientX - rect.left + 14) + "px";
     tip.style.top = e.clientY - rect.top + 14 + "px";
   } else tip.style.display = "none";
 }
 
-// ─── Animasyon ───
+// ─── Animasyon + hız kontrolü ───
 let playTimer = null;
 function stopPlay() {
   if (playTimer) { clearInterval(playTimer); playTimer = null; $("playBtn").textContent = "⏵ Yükleme animasyonu"; }
 }
+
 function applyVisibility(n) {
   meshes.forEach((m, i) => (m.visible = i < n));
   $("sliderLabel").textContent = `${n} / ${meshes.length} paket`;
+  let vol = 0;
+  for (let i = 0; i < n && i < meshes.length; i++) vol += meshes[i].userData.vol;
+  $("volStat").textContent = vol.toFixed(1);
+  const cap = capVolume();
+  $("fillStat").textContent = cap ? ((vol / cap) * 100).toFixed(1) : "0";
+  updateVehLabel(n);
 }
 
- $("playBtn").addEventListener("click", () => {
-  if (playTimer) { stopPlay(); return; }
+function startPlay(keepPos) {
   if (!meshes.length) return;
+  stopPlay();
   const sl = $("loadSlider");
-  sl.value = 0;
-  applyVisibility(0);
-  const step = Math.max(1, Math.ceil(meshes.length / 150));
+  if (!keepPos) { sl.value = 0; applyVisibility(0); }
+  const speed = +$("speedSelect").value || 1;
+  const step = Math.max(1, Math.ceil((meshes.length / 150) * speed));
   $("playBtn").textContent = "⏸ Durdur";
   playTimer = setInterval(() => {
     const nv = Math.min(meshes.length, +sl.value + step);
     sl.value = nv;
     applyVisibility(nv);
     if (nv >= meshes.length) stopPlay();
-  }, 30);
+  }, 25);
+}
+
+ $("playBtn").addEventListener("click", () => (playTimer ? stopPlay() : startPlay(false)));
+ $("speedSelect").addEventListener("change", () => {
+  if (playTimer) { startPlay(true); } // animasyon sürerken hız anında değişir, kaldığı yerden devam eder
 });
  $("loadSlider").addEventListener("input", (e) => { stopPlay(); applyVisibility(+e.target.value); });
 
