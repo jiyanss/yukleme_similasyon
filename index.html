@@ -28,7 +28,6 @@
   select, input[type=number], input[type=text] { width:100%; padding:9px; background:#0b1220; border:1px solid #334155; border-radius:8px; color:#e2e8f0; font-size:13px; }
   .dims { display:flex; gap:8px; }
   .dims > div { flex:1; }
-  /* Manuel giriş formu */
   .mform { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:6px; }
   .mform input, .mform select { padding:8px; font-size:12px; }
   .mform #addBtn { padding:8px; font-size:12px; width:100%; border:0; border-radius:8px; background:#22c55e; color:#052e16; font-weight:700; }
@@ -95,6 +94,11 @@
           <option value="YERDE">YERDE</option>
         </select>
         <input type="number" id="mIstif" placeholder="İstif" min="0">
+        <select id="mYukleme">
+          <option value="">Serbest</option>
+          <option value="ENINE">Enine</option>
+          <option value="BOYUNA">Boyuna</option>
+        </select>
         <button id="addBtn">+ Ekle</button>
         <button id="cancelEditBtn" class="ghost hidden">✕ Düzenlemeyi iptal et</button>
       </div>
@@ -108,12 +112,13 @@
       <div id="parseErrors"></div>
       <div id="tableWrap" class="hidden">
         <table>
-          <thead><tr><th>Ürün</th><th>En</th><th>Boy</th><th>Yüks</th><th>Adet</th><th>Kural</th><th>İstif</th><th></th></tr></thead>
+          <thead><tr><th>Ürün</th><th>En</th><th>Boy</th><th>Yüks</th><th>Adet</th><th>Kural</th><th>İstif</th><th>Yön</th><th></th></tr></thead>
           <tbody id="pkgBody"></tbody>
         </table>
         <div id="pkgCount"></div>
       </div>
-      <p class="hint">Ölçüler cm. Kural: STANDART / KIRILGAN / DIK / YERDE (boşsa STANDART). İstif: üstüne max kaç paket konabilir (boşsa 5).<br>
+      <p class="hint">Ölçüler cm. Kural: STANDART / KIRILGAN / DIK / YERDE.<br>
+      Yön: <b>ENINE</b> = paketin boyu aracın enine yatar, <b>BOYUNA</b> = aracın boyuna paralel, boş = serbest.<br>
       Tablodaki <b style="color:#60a5fa">✎</b> ile düzenle, <b style="color:#f87171">✕</b> ile sil.</p>
     </section>
 
