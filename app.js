@@ -1,12 +1,14 @@
 "use strict";
 
-// ═══════════ Araç Tipleri (iç ölçüler cm) ═══════════
+// ═══════════ Araç Tipleri — iç ölçüler cm, kendi filona göre buradan düzelt ═══════════
 const VEHICLE_TYPES = [
-  { id: "kamyonet", name: "Kamyonet", w: 170, l: 300, h: 170, capacity: 1200 },
-  { id: "ticari", name: "Ticari (Sprinter)", w: 170, l: 470, h: 190, capacity: 1500 },
-  { id: "kamyon", name: "Kamyon (10 ton)", w: 245, l: 720, h: 260, capacity: 10000 },
-  { id: "tir", name: "TIR 13.6m", w: 245, l: 1360, h: 270, capacity: 25000 },
-  { id: "custom", name: "⚙ Özel ölçü gir...", w: 0, l: 0, h: 0, capacity: 0 },
+  { id: "tir",      name: "TIR 13.6m",          w: 245, l: 1360, h: 270, capacity: 25000 },
+  { id: "c40hc",    name: "40HC Konteyner",     w: 235, l: 1203, h: 269, capacity: 26000 },
+  { id: "c20dc",    name: "20DC Konteyner",     w: 235, l: 589,  h: 239, capacity: 21000 },
+  { id: "c45hc",    name: "45HC Konteyner",     w: 235, l: 1355, h: 269, capacity: 27000 },
+  { id: "kamyon10", name: "Kamyon 10 Teker",    w: 245, l: 720,  h: 250, capacity: 10000 },
+  { id: "parsiyel", name: "Parsiyel",           w: 0, l: 0, h: 0, capacity: 0 },
+  { id: "custom",   name: "Özel Araç",          w: 0, l: 0, h: 0, capacity: 0 },
 ];
 
 const DEMO = [
@@ -20,6 +22,43 @@ const DEMO = [
 
 const state = { packages: [], result: null, activeVehicle: 0 };
 const $ = (id) => document.getElementById(id);
+
+// ═══════════ Excel şablonu indir ═══════════
+ $("tplBtn").addEventListener("click", () => {
+  if (typeof XLSX === "undefined") { alert("Excel kütüphanesi yüklenemedi (internet engeli olabilir)."); return; }
+  const wb = XLSX.utils.book_new();
+
+  const data = [
+    ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif"],
+    ["TV-55", 140, 25, 85, 4, "KIRILGAN", ""],
+    ["Buzdolabi", 70, 75, 180, 2, "DIK", ""],
+    ["Koli-A", 40, 60, 50, 100, "", 4],
+    ["Sandik", 80, 80, 60, 10, "YERDE", ""],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [{ wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 7 }, { wch: 12 }, { wch: 8 }];
+  XLSX.utils.book_append_sheet(wb, ws, "YuklemeListesi");
+
+  const help = [
+    ["ALAN", "AÇIKLAMA"],
+    ["UrunKod", "Paket kodu (zorunlu)"],
+    ["En / Boy / Yukseklik", "Paket ölçüleri cm (zorunlu)"],
+    ["Adet", "Kaç adet yüklenecek (boşsa 1)"],
+    ["Kural", "STANDART / KIRILGAN / DIK / YERDE (boşsa STANDART)"],
+    ["Istif", "Üstüne maksimum kaç paket konabilir (boşsa 5)"],
+    [],
+    ["KURAL", "ANLAMI"],
+    ["STANDART", "Serbest döner, istiflenebilir"],
+    ["KIRILGAN", "Üstüne hiçbir paket konamaz"],
+    ["DIK", "Döndürülemez, sadece dik durur"],
+    ["YERDE", "En alt katmanda durur"],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(help);
+  ws2["!cols"] = [{ wch: 22 }, { wch: 52 }];
+  XLSX.utils.book_append_sheet(wb, ws2, "Aciklama");
+
+  XLSX.writeFile(wb, "yukleme-listesi-sablon.xlsx");
+});
 
 // ═══════════ Excel okuma ═══════════
 const COLS = {
@@ -120,9 +159,13 @@ function runSim() {
   if (!state.packages.length) { alert("Önce yükleme listesi ekleyin (Excel veya örnek veri)."); return; }
   const vi = +$("vehicleSelect").value;
   let spec = { ...VEHICLE_TYPES[vi] };
-  if (spec.id === "custom") {
-    spec = { id: "custom", name: "Özel araç", w: +$("cw").value, l: +$("cl").value, h: +$("ch").value, capacity: 0 };
-    if (!spec.w || !spec.l || !spec.h) { alert("Özel araç için iç ölçüleri girin."); return; }
+  if (spec.id === "parsiyel" || spec.id === "custom") {
+    spec = {
+      id: spec.id,
+      name: spec.id === "custom" ? ($("cname").value.trim() || "Özel Araç") : "Parsiyel",
+      w: +$("cw").value, l: +$("cl").value, h: +$("ch").value, capacity: 0,
+    };
+    if (!spec.w || !spec.l || !spec.h) { alert("Lütfen araç iç ölçülerini (En/Boy/Yükseklik) girin."); return; }
   }
   const count = Math.min(20, Math.max(1, Math.round(+$("vCount").value || 1)));
   $("vCount").value = count;
@@ -151,7 +194,9 @@ function renderResults() {
   const s = res.stats[state.activeVehicle];
   const placed = res.vehicles.reduce((a, v) => a + v.placements.length, 0);
   const capVol = ((res.spec.w * res.spec.h * res.spec.l) / 1e6).toFixed(1);
-  $("vehInfo").textContent = `${res.spec.name} — iç ölçü ${res.spec.w}×${res.spec.l}×${res.spec.h} cm`;
+  $("vehInfo").textContent =
+    `${res.spec.name} — iç ölçü ${res.spec.w}×${res.spec.l}×${res.spec.h} cm — ` +
+    `dolum: önden (yeşil) arkaya, kapıya (turuncu) doğru`;
   $("statsBar").innerHTML =
     `<span>🚛 Araç ${state.activeVehicle + 1}: <b>${s.count}</b> paket</span>` +
     `<span>Doluluk: <b>%${s.fillRate}</b></span>` +
@@ -230,9 +275,28 @@ function disposeGroup(g) {
     const c = g.children.pop();
     c.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material) Array.isArray(o.material) ? o.material.forEach((m) => m.dispose()) : o.material.dispose();
+      if (o.material) {
+        if (Array.isArray(o.material)) o.material.forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); });
+        else { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+      }
     });
   }
+}
+
+// Yazı etiketi (sprite) — ÖN / KAPI işaretleri için
+function textSprite(text, color, w, h) {
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 128;
+  const g = c.getContext("2d");
+  g.fillStyle = "rgba(11,18,32,0.85)";
+  g.fillRect(0, 0, 512, 128);
+  g.strokeStyle = color; g.lineWidth = 6; g.strokeRect(3, 3, 506, 122);
+  g.font = "bold 60px system-ui"; g.fillStyle = color;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(text, 256, 68);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }));
+  sp.scale.set(w, h, 1);
+  return sp;
 }
 
 function buildScene() {
@@ -268,7 +332,44 @@ function buildScene() {
   sceneGroup.add(outline);
   bgeo.dispose();
 
-  // paketler
+  // ── Dolum yönü işaretleri ──
+  // ÖN: yeşil şerit (dolum buradan başlar, z=0 ucu)
+  const startStrip = new THREE.Mesh(
+    new THREE.PlaneGeometry(spec.w, Math.min(8, spec.l * 0.05)),
+    new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+  );
+  startStrip.rotation.x = -Math.PI / 2;
+  startStrip.position.set(spec.w / 2, 0.8, Math.min(4, spec.l * 0.03));
+  sceneGroup.add(startStrip);
+
+  // KAPI: turuncu çerçeve (z = boy ucu)
+  const doorGeo = new THREE.PlaneGeometry(spec.w, spec.h);
+  const door = new THREE.LineSegments(
+    new THREE.EdgesGeometry(doorGeo),
+    new THREE.LineBasicMaterial({ color: 0xf97316 })
+  );
+  door.position.set(spec.w / 2, spec.h / 2, spec.l);
+  sceneGroup.add(door);
+  doorGeo.dispose();
+
+  // Yön oku + etiketler
+  const arrowLen = Math.min(spec.l * 0.35, 250);
+  const arrow = new THREE.ArrowHelper(
+    new THREE.Vector3(0, 0, 1),
+    new THREE.Vector3(spec.w / 2, 25, 15),
+    arrowLen, 0x22c55e, arrowLen * 0.25, arrowLen * 0.12
+  );
+  sceneGroup.add(arrow);
+
+  const lblW = spec.w * 0.85, lblH = spec.w * 0.22;
+  const sFront = textSprite("ÖN • dolum başlar", "#4ade80", lblW, lblH);
+  sFront.position.set(spec.w / 2, spec.h * 0.9, -lblW * 0.6);
+  sceneGroup.add(sFront);
+  const sBack = textSprite("ARKA • KAPI", "#fb923c", lblW, lblH);
+  sBack.position.set(spec.w / 2, spec.h * 0.9, spec.l + lblW * 0.6);
+  sceneGroup.add(sBack);
+
+  // ── Paketler (yerleşim sırası = dolum sırası: önden arkaya) ──
   const edgeMat = new THREE.LineBasicMaterial({ color: 0x0b1220, transparent: true, opacity: 0.4 });
   v.placements.forEach((p) => {
     const geo = new THREE.BoxGeometry(p.w, p.h, p.l);
@@ -279,6 +380,7 @@ function buildScene() {
       dims: `${p.w}×${p.l}×${p.h} cm`,
       rule: p.pkg.rule,
       level: p.stackLevel + 1,
+      order: v.placements.indexOf(p) + 1,
     };
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
     boxGroup.add(mesh);
@@ -344,9 +446,9 @@ function hover(e, el) {
   const hits = raycaster.intersectObjects(meshes.filter((m) => m.visible), false);
   if (hits.length) {
     const d = hits[0].object.userData;
-    tip.innerHTML = `<b>${d.name}</b><br>${d.dims}<br>Kural: ${d.rule} • Katman ${d.level}`;
+    tip.innerHTML = `<b>${d.name}</b> • ${d.order}. yüklenen<br>${d.dims}<br>Kural: ${d.rule} • Katman ${d.level}`;
     tip.style.display = "block";
-    tip.style.left = Math.min(rect.width - 170, e.clientX - rect.left + 14) + "px";
+    tip.style.left = Math.min(rect.width - 190, e.clientX - rect.left + 14) + "px";
     tip.style.top = e.clientY - rect.top + 14 + "px";
   } else tip.style.display = "none";
 }
@@ -382,11 +484,14 @@ function applyVisibility(n) {
 VEHICLE_TYPES.forEach((v, i) => {
   const o = document.createElement("option");
   o.value = i;
-  o.textContent = v.id === "custom" ? v.name : `${v.name} (${v.w}×${v.l}×${v.h} cm)`;
+  o.textContent = v.w ? `${v.name} (${v.w}×${v.l}×${v.h} cm)` : `${v.name} — ölçüleri sen belirle`;
   $("vehicleSelect").appendChild(o);
 });
  $("vehicleSelect").addEventListener("change", () => {
-  $("customDims").classList.toggle("hidden", VEHICLE_TYPES[$("vehicleSelect").value].id !== "custom");
+  const id = VEHICLE_TYPES[$("vehicleSelect").value].id;
+  const custom = id === "parsiyel" || id === "custom";
+  $("customDims").classList.toggle("hidden", !custom);
+  $("customNameWrap").classList.toggle("hidden", id !== "custom");
 });
 
  $("runBtn").addEventListener("click", runSim);
