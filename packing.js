@@ -2,6 +2,7 @@
 //  Yükleme Simülasyon Motoru — 3D Bin Packing
 //  Yöntem: First-Fit Decreasing + Extreme Points
 //  Ölçüler: cm | Kullanım: PackingEngine.simulate(paketler, aracOlcu, aracAdedi)
+//  Yön (loadDir): "" serbest | "ENINE" boy→araç eni | "BOYUNA" boy→araç boyu
 // ═══════════════════════════════════════════════════════
 var PackingEngine = (function () {
   "use strict";
@@ -13,6 +14,8 @@ var PackingEngine = (function () {
     var items = [];
     packages.forEach(function (p) {
       var qty = Math.max(1, parseInt(p.Adet, 10) || 1);
+      var dir = String(p.Yukleme || "").trim().toUpperCase();
+      if (dir !== "ENINE" && dir !== "BOYUNA") dir = "";
       for (var i = 0; i < qty; i++) {
         items.push({
           id: p.UrunKod + "-" + (i + 1),
@@ -20,6 +23,7 @@ var PackingEngine = (function () {
           w: +p.En, l: +p.Boy, h: +p.Yukseklik,
           rule: p.Kural || "STANDART",
           maxStack: parseInt(p.Istif, 10) || 5,
+          loadDir: dir,
         });
       }
     });
@@ -31,15 +35,35 @@ var PackingEngine = (function () {
     return items;
   }
 
-  // İzinli dönüşler: DIK sadece dik, diğerleri 6 permütasyon (tekiller elenir)
+  // İzinli dönüşler. d = [En, Boy, Yükseklik]
+  // Permütasyon sırası [w, l, h]: w=araç genişliği, l=araç uzunluğu, h=dikey
   function getRotations(item) {
     if (item.rule === "DIK") return [{ w: item.w, l: item.l, h: item.h }];
+
     var d = [item.w, item.l, item.h];
-    var perms = [
-      [d[0], d[1], d[2]], [d[0], d[2], d[1]],
-      [d[1], d[0], d[2]], [d[1], d[2], d[0]],
-      [d[2], d[0], d[1]], [d[2], d[1], d[0]],
-    ];
+    var perms;
+
+    if (item.loadDir === "BOYUNA") {
+      // Boy ölçüsü araç boyunca kalır; En ↔ Yükseklik takas edebilir
+      perms = [
+        [d[0], d[1], d[2]],
+        [d[2], d[1], d[0]],
+      ];
+    } else if (item.loadDir === "ENINE") {
+      // Boy ölçüsü aracın enine yatar; kalan iki ölçü takas edebilir
+      perms = [
+        [d[1], d[0], d[2]],
+        [d[1], d[2], d[0]],
+      ];
+    } else {
+      // Serbest: 6 permütasyon
+      perms = [
+        [d[0], d[1], d[2]], [d[0], d[2], d[1]],
+        [d[1], d[0], d[2]], [d[1], d[2], d[0]],
+        [d[2], d[0], d[1]], [d[2], d[1], d[0]],
+      ];
+    }
+
     var seen = {}, out = [];
     perms.forEach(function (pm) {
       var key = pm.join("|");
@@ -92,9 +116,8 @@ var PackingEngine = (function () {
 
   function tryPlace(vehicle, item, spec) {
     var rotations = getRotations(item);
-    // alttan ve önden başla → taban dolu ve doğal görünüm
+    // sütun sütun dolum: öndeki sütun yukarı dolar, sonra arkaya geçer
     var points = vehicle.points.slice().sort(function (a, b) {
-      // YENİ (sütun sütun dolum: öndeki sütun yukarı dolar, sonra arkaya geçer):
       return a.z - b.z || a.x - b.x || a.y - b.y;
     });
     for (var pi = 0; pi < points.length; pi++) {
