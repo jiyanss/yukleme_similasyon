@@ -12,12 +12,12 @@ const VEHICLE_TYPES = [
 ];
 
 const DEMO = [
-  { UrunKod: "Buzdolabi", En: 70, Boy: 75, Yukseklik: 180, Adet: 10, Kural: "DIK", Istif: "" },
-  { UrunKod: "TV-55", En: 140, Boy: 25, Yukseklik: 85, Adet: 15, Kural: "KIRILGAN", Istif: "" },
-  { UrunKod: "Koli-A", En: 40, Boy: 60, Yukseklik: 50, Adet: 100, Kural: "", Istif: 4 },
-  { UrunKod: "Koli-B", En: 50, Boy: 50, Yukseklik: 40, Adet: 80, Kural: "", Istif: 5 },
-  { UrunKod: "Sandik", En: 80, Boy: 80, Yukseklik: 60, Adet: 20, Kural: "YERDE", Istif: "" },
-  { UrunKod: "CamasirMak", En: 60, Boy: 60, Yukseklik: 85, Adet: 12, Kural: "DIK", Istif: "" },
+  { UrunKod: "Yatak", En: 180, Boy: 200, Yukseklik: 35, Adet: 10, Kural: "YATAY", Istif: "" },
+  { UrunKod: "Baza", En: 90, Boy: 200, Yukseklik: 25, Adet: 15, Kural: "YATAY", Istif: "" },
+  { UrunKod: "BASLIK", En: 160, Boy: 110, Yukseklik: 15, Adet: 15, Kural: "", Istif: 4 },
+  { UrunKod: "KOMODIN", En: 50, Boy: 50, Yukseklik: 40, Adet: 15, Kural: "", Istif: 5 },
+  { UrunKod: "PED", En: 180, Boy: 200, Yukseklik: 4, Adet: 30, Kural: "YATAY", Istif: "" },
+  { UrunKod: "MARKIZ", En: 60, Boy: 60, Yukseklik: 85, Adet: 12, Kural: "DIK", Istif: "" },
 ];
 
 const state = { packages: [], result: null, activeVehicle: 0 };
