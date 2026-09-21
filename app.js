@@ -415,6 +415,11 @@ function updateVehLabel(visibleCount) {
   g.fillStyle = "#e2e8f0";
   g.font = "bold 48px system-ui";
   g.fillText(`Araç ${state.activeVehicle + 1}`, 190, canvas.height / 2);
+    // imza
+  g.font = "bold 30px system-ui";
+  g.textAlign = "right"; g.textBaseline = "alphabetic";
+  g.fillStyle = "rgba(147,197,253,0.75)";
+  g.fillText("Design by Sait", canvas.width - 30, canvas.height - 26);
   tex.needsUpdate = true;
 }
 
