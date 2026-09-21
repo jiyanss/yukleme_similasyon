@@ -516,20 +516,32 @@ function updateVehLabel(visibleCount) {
   const cap = usableVolume();
   const pct = cap ? ((vol / cap) * 100).toFixed(1) : "0";
 
-  g.font = "bold 58px system-ui";
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillStyle = "#4ade80";
-  g.fillText(`${vol.toFixed(1)} / ${cap.toFixed(1)} m³`, canvas.width / 2 - 200, canvas.height / 2);
-  g.fillStyle = "#60a5fa";
-  g.fillText(`Doluluk %${pct}`, canvas.width / 2 + 330, canvas.height / 2);
-  g.fillStyle = "#e2e8f0";
-  g.font = "bold 48px system-ui";
-  g.fillText(`Araç ${state.activeVehicle + 1}`, 190, canvas.height / 2);
+  g.textBaseline = "middle";
 
-  g.font = "bold 30px system-ui";
-  g.textAlign = "right"; g.textBaseline = "alphabetic";
+  // SOL bölge: araç adı
+  g.font = "bold 44px system-ui";
+  g.textAlign = "left";
+  g.fillStyle = "#e2e8f0";
+  g.fillText(`Araç ${state.activeVehicle + 1}`, 45, canvas.height / 2);
+
+  // ORTA bölge: hacim
+  g.font = "bold 56px system-ui";
+  g.textAlign = "center";
+  g.fillStyle = "#4ade80";
+  g.fillText(`${vol.toFixed(1)} / ${cap.toFixed(1)} m³`, canvas.width / 2 + 40, canvas.height / 2);
+
+  // SAĞ bölge: doluluk
+  g.font = "bold 46px system-ui";
+  g.textAlign = "right";
+  g.fillStyle = "#60a5fa";
+  g.fillText(`Doluluk %${pct}`, canvas.width - 45, canvas.height / 2);
+
+  // imza (sağ alt köşe)
+  g.font = "bold 28px system-ui";
+  g.textAlign = "right";
+  g.textBaseline = "alphabetic";
   g.fillStyle = "rgba(147,197,253,0.75)";
-  g.fillText("Design by Sait", canvas.width - 30, canvas.height - 26);
+  g.fillText("Design by Sait", canvas.width - 28, canvas.height - 18);
 
   tex.needsUpdate = true;
 }
@@ -738,7 +750,7 @@ function topViewSVG(placements, spec) {
   let parts = "";
   for (let z = 100; z < spec.l; z += 100) {
     parts += `<line x1="${z}" y1="0" x2="${z}" y2="${H}" stroke="#d7dce3" stroke-width="2"/>` +
-      `<text x="${z}" y="${H + 26}" font-size="20" text-anchor="middle" fill="#888" font-family="system-ui">${z / 100}m</text>`;
+      `<text x="${z}" y="${H + 30}" font-size="20" text-anchor="middle" fill="#888" font-family="system-ui">${z / 100}m</text>`;
   }
   upper.forEach((p) => {
     parts += `<rect x="${p.z}" y="${p.x}" width="${p.l}" height="${p.w}" fill="none" stroke="#9aa3af" stroke-width="2" stroke-dasharray="8 6"/>`;
@@ -747,9 +759,10 @@ function topViewSVG(placements, spec) {
     const col = "#" + colorFor(p.pkg.name).getHexString();
     parts += `<rect x="${p.z}" y="${p.x}" width="${p.l}" height="${p.w}" fill="${col}" fill-opacity="0.9" stroke="#1e293b" stroke-width="2.5"/>`;
     let label = p.pkg.name;
-    if (label.length > 12) label = label.slice(0, 11) + "…";
+    if (label.length > 14) label = label.slice(0, 13) + "…";
     if (cnt[i] > 1) label += " ×" + cnt[i];
-    const fs = Math.max(13, Math.min(p.l, p.w) * 0.35);
+    // yazı KUTUYA sığacak şekilde: kısa kenar / karakter sayısı, üst sınır 26
+    const fs = Math.max(11, Math.min(26, Math.min(p.l, p.w) / (label.length * 0.62)));
     const cx = p.z + p.l / 2, cy = p.x + p.w / 2;
     if (p.w > p.l) {
       parts += `<text transform="rotate(-90 ${cx} ${cy})" x="${cx}" y="${cy}" dy="0.35em" font-size="${fs}" text-anchor="middle" fill="#0b1220" font-family="system-ui" font-weight="bold">${esc(label)}</text>`;
@@ -758,12 +771,12 @@ function topViewSVG(placements, spec) {
     }
   });
 
-  return `<svg viewBox="-8 -44 ${W + 16} ${H + 78}" xmlns="http://www.w3.org/2000/svg">` +
+  return `<svg viewBox="-8 -66 ${W + 48} ${H + 116}" xmlns="http://www.w3.org/2000/svg">` +
     `<rect x="0" y="0" width="${W}" height="${H}" fill="#f6f8fb"/>` +
     parts +
     `<rect x="0" y="0" width="${W}" height="${H}" fill="none" stroke="#64748b" stroke-width="4"/>` +
-    `<text x="0" y="-14" font-size="26" text-anchor="start" fill="#16a34a" font-family="system-ui" font-weight="bold">◀ ÖN (dolum başlar)</text>` +
-    `<text x="${W}" y="-14" font-size="26" text-anchor="end" fill="#ea580c" font-family="system-ui" font-weight="bold">KAPI ▶</text>` +
+    `<text x="0" y="-36" font-size="26" text-anchor="start" fill="#16a34a" font-family="system-ui" font-weight="bold">◀ ÖN (dolum başlar)</text>` +
+    `<text x="${W}" y="-36" font-size="26" text-anchor="end" fill="#ea580c" font-family="system-ui" font-weight="bold">KAPI ▶</text>` +
     `</svg>`;
 }
 
@@ -773,25 +786,25 @@ function sideViewSVG(placements, spec) {
   let parts = "";
   for (let z = 100; z < spec.l; z += 100) {
     parts += `<line x1="${z}" y1="0" x2="${z}" y2="${H}" stroke="#d7dce3" stroke-width="2"/>` +
-      `<text x="${z}" y="${H + 26}" font-size="20" text-anchor="middle" fill="#888" font-family="system-ui">${z / 100}m</text>`;
+      `<text x="${z}" y="${H + 30}" font-size="20" text-anchor="middle" fill="#888" font-family="system-ui">${z / 100}m</text>`;
   }
   for (let h = 50; h < spec.h; h += 50) {
     const y = H - h;
     parts += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#e2e7ee" stroke-width="1.5"/>` +
-      `<text x="-8" y="${y}" dy="0.32em" font-size="20" text-anchor="end" fill="#888" font-family="system-ui">${h}</text>`;
+      `<text x="-10" y="${y}" dy="0.32em" font-size="20" text-anchor="end" fill="#888" font-family="system-ui">${h}</text>`;
   }
   placements.slice().sort((a, b) => a.x - b.x).forEach((p) => {
     const col = "#" + colorFor(p.pkg.name).getHexString();
     parts += `<rect x="${p.z}" y="${H - p.y - p.h}" width="${p.l}" height="${p.h}" fill="${col}" fill-opacity="0.85" stroke="#1e293b" stroke-width="2"/>`;
   });
 
-  return `<svg viewBox="-56 -40 ${W + 72} ${H + 74}" xmlns="http://www.w3.org/2000/svg">` +
+  return `<svg viewBox="-60 -44 ${W + 120} ${H + 88}" xmlns="http://www.w3.org/2000/svg">` +
     `<rect x="0" y="0" width="${W}" height="${H}" fill="#f6f8fb"/>` +
     parts +
     `<rect x="0" y="0" width="${W}" height="${H}" fill="none" stroke="#64748b" stroke-width="4"/>` +
-    `<text x="0" y="-12" font-size="26" text-anchor="start" fill="#16a34a" font-family="system-ui" font-weight="bold">◀ ÖN</text>` +
-    `<text x="${W}" y="-12" font-size="26" text-anchor="end" fill="#ea580c" font-family="system-ui" font-weight="bold">KAPI ▶</text>` +
-    `<text x="${W + 8}" y="${H}" dy="0.32em" font-size="20" fill="#888" font-family="system-ui">cm</text>` +
+    `<text x="0" y="-14" font-size="26" text-anchor="start" fill="#16a34a" font-family="system-ui" font-weight="bold">◀ ÖN</text>` +
+    `<text x="${W}" y="-14" font-size="26" text-anchor="end" fill="#ea580c" font-family="system-ui" font-weight="bold">KAPI ▶</text>` +
+    `<text x="${W + 14}" y="${H}" dy="0.32em" font-size="20" fill="#888" font-family="system-ui">cm</text>` +
     `</svg>`;
 }
 
