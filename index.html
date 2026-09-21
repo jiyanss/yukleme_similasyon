@@ -31,6 +31,9 @@
   .dims > div { flex:1; }
   .mform { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:6px; }
   .mform input, .mform select { padding:8px; font-size:12px; }
+  .mform #catSelect { grid-column:1 / -1; }
+  .mform .savelabel { grid-column:1 / -1; display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; }
+  .mform .savelabel input { width:auto; }
   .mform #addBtn { padding:8px; font-size:12px; width:100%; border:0; border-radius:8px; background:#22c55e; color:#052e16; font-weight:700; }
   .mform #addBtn:hover { background:#16a34a; }
   #cancelEditBtn { grid-column:1 / -1; margin-top:0; }
@@ -47,8 +50,9 @@
   .tab { padding:7px 12px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
   .tab.active { background:#1d3a6b; border-color:#3b82f6; color:#fff; }
   #animControls { display:flex; align-items:center; gap:8px; font-size:12px; color:#94a3b8; flex-wrap:wrap; }
-  #loadSlider { width:150px; accent-color:#3b82f6; }
-  #playBtn, #speedLabel { padding:6px 10px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
+  #loadSlider { width:130px; accent-color:#3b82f6; }
+  #playBtn, #printBtn, #speedLabel { padding:6px 10px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
+  #printBtn:hover { border-color:#3b82f6; color:#e2e8f0; }
   #speedSelect { width:auto; padding:5px 8px; }
   #vehInfo { font-size:12px; color:#64748b; }
   #canvasWrap { position:relative; flex:1; min-height:340px; background:#0b1220; border:1px solid #1e293b; border-radius:12px; overflow:hidden; }
@@ -68,13 +72,37 @@
   #unplacedBox h3 { font-size:13px; color:#fca5a5; margin-bottom:4px; }
   .hidden { display:none !important; }
   @media (max-width:900px) { main { grid-template-columns:1fr; height:auto; } #canvasWrap { height:55vh; flex:none; } }
+
+  /* ═══ YAZDIRMA / PDF RAPOR ═══ */
+  #printArea { display:none; }
+  @media print {
+    @page { margin: 12mm; }
+    body > *:not(#printArea) { display:none !important; }
+    #printArea {
+      display:block !important; color:#111; background:#fff;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; font-size:12px;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+    #printArea h1 { font-size:20px; margin-bottom:2px; }
+    #printArea .meta { color:#555; font-size:11px; margin-bottom:10px; }
+    #printArea .veh { page-break-before:always; }
+    #printArea .veh:first-of-type { page-break-before:auto; }
+    #printArea h2 { font-size:15px; margin:4px 0 8px; color:#1d4ed8; }
+    #printArea h3 { font-size:12px; margin:12px 0 4px; color:#333; }
+    #printArea table { width:100%; border-collapse:collapse; font-size:10.5px; margin-bottom:6px; }
+    #printArea th, #printArea td { border:1px solid #999; padding:3px 6px; text-align:left; }
+    #printArea th { background:#eee; }
+    #printArea svg { max-height:270px; max-width:72%; display:block; margin:2px 0 4px; }
+    #printArea .warn { background:#fdf2f2; border:1px solid #c0392b; padding:8px; margin-top:12px; }
+    #printArea .stamp { margin-top:16px; padding-top:6px; border-top:1px solid #ccc; color:#2563eb; font-weight:700; font-size:11px; }
+  }
 </style>
 </head>
 <body>
 
 <header>
   <h1>🚛 Araç Yükleme Simülatörü</h1>
-  <span class="subtitle">Elle gir veya Excel yükle → araç seç → 3D simülasyon</span>
+  <span class="subtitle">Katalogdan seç veya Excel yükle → araç seç → 3D simülasyon → PDF rapor</span>
   <span class="brand">✦ Design by Sait</span>
 </header>
 
@@ -85,6 +113,9 @@
 
       <h3 class="mini">✍ Manuel giriş</h3>
       <div class="mform">
+        <select id="catSelect">
+          <option value="">— Katalogdan seç (ölçüler otomatik dolar) —</option>
+        </select>
         <input type="text" id="mUrunKod" placeholder="Ürün kodu">
         <input type="number" id="mEn" placeholder="En" min="0">
         <input type="number" id="mBoy" placeholder="Boy" min="0">
@@ -104,6 +135,7 @@
           <option value="BOYUNA">Boyuna</option>
         </select>
         <button id="addBtn">+ Ekle</button>
+        <label class="savelabel"><input type="checkbox" id="mSaveCat"> Kataloğa kaydet (bir daha girmenize gerek kalmasın)</label>
         <button id="cancelEditBtn" class="ghost hidden">✕ Düzenlemeyi iptal et</button>
       </div>
 
@@ -125,6 +157,7 @@
       Öncelik: küçük sayı önce yüklenir (boşsa hacme göre otomatik).<br>
       Yön: <b>ENINE</b> = boy ölçüsü aracın enine yatar, <b>BOYUNA</b> = boyuna paralel, boş = serbest.<br>
       İstif: üst üste max katman. <b>Boş = otomatik</b> (araç yüksekliği ÷ paket yüksekliği).<br>
+      📄 Excel yüklediğinde ürünler <b>otomatik kataloğa</b> eklenir.<br>
       Tablodaki <b style="color:#60a5fa">✎</b> düzenle, <b style="color:#f87171">✕</b> sil.</p>
     </section>
 
@@ -156,7 +189,19 @@
       </div>
       <button id="runBtn" class="primary" style="margin-top:14px">▶ Simülasyonu Başlat</button>
       <p class="hint">💡 Dolum <b>öndeki sütun yukarı istiflenerek</b> başlar, arkaya (kapıya) doğru dolar.<br>
-      🔥 Fire: araçta planlanamayan boşluk payı. Kullanılabilir hacim = brüt × (1 − fire). Motor bu hacmi aşmaz, doluluk kullanılabilir hacme göre hesaplanır.</p>
+      🔥 Fire: planlanamayan boşluk payı. Kullanılabilir hacim = brüt × (1 − fire).</p>
+    </section>
+
+    <section class="card">
+      <h2>3. Ürün Kataloğu <span style="color:#64748b;font-weight:400">(tarayıcıda kalıcı)</span></h2>
+      <div id="catEmpty" class="hint" style="margin-top:0">Katalog henüz boş. Excel yükleyin ya da manuel girişte "Kataloğa kaydet" işaretleyin — bir dahaki sefere sadece adet gireceksin.</div>
+      <div id="catWrap" class="hidden">
+        <table>
+          <thead><tr><th>Ürün</th><th>Ölçüler (cm)</th><th>Kural</th><th>Yön</th><th></th></tr></thead>
+          <tbody id="catBody"></tbody>
+        </table>
+        <button id="catClearBtn" class="ghost">🗑 Kataloğu temizle</button>
+      </div>
     </section>
   </aside>
 
@@ -176,6 +221,7 @@
           <option value="2">2x</option>
           <option value="3">3x</option>
         </select>
+        <button id="printBtn">🖨 PDF Rapor</button>
       </div>
     </div>
     <div id="vehInfo"></div>
@@ -195,6 +241,8 @@
     </div>
   </section>
 </main>
+
+<div id="printArea"></div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
