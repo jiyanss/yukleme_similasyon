@@ -723,36 +723,75 @@ function startPlay(keepPos) {
  $("loadSlider").addEventListener("input", (e) => { stopPlay(); applyVisibility(+e.target.value); });
 
 // ═══════════ PDF / Yazdırma Raporu ═══════════
-function posLabel(p, spec) {
-  const zs = p.z + p.l / 2, xs = p.x + p.w / 2;
-  const zt = zs < spec.l / 3 ? "ön" : zs > (2 * spec.l) / 3 ? "arka" : "orta";
-  const xt = xs < spec.w / 3 ? "sol" : xs > (2 * spec.w) / 3 ? "sağ" : "orta";
-  if (xt === "orta" && zt === "orta") return "merkez";
-  if (xt === "orta") return zt;
-  if (zt === "orta") return xt;
-  return zt + "-" + xt;
-}
+// Her araç TEK sayfa: üstten plan + yandan kesit + ürün özeti
 
-function planSVG(placements, spec, level) {
-  const inLevel = placements.filter((p) => Math.abs(p.y - level) < 0.05);
-  const below = placements.filter((p) => p.y < level - 0.05);
+function topViewSVG(placements, spec) {
+  // Uzunluk yatay: svg x = araç boyu (z), svg y = araç eni (x). ÖN solda.
+  const W = spec.l, H = spec.w;
+  const ground = placements.filter((p) => p.y < 0.5);
+  const upper  = placements.filter((p) => p.y >= 0.5);
+  const cnt = ground.map((g) => placements.filter((p) =>
+    p.x < g.x + g.w - 0.5 && p.x + p.w > g.x + 0.5 &&
+    p.z < g.z + g.l - 0.5 && p.z + p.l > g.z + 0.5
+  ).length);
+
   let parts = "";
-  below.forEach((p) => {
-    parts += `<rect x="${p.x}" y="${p.z}" width="${p.w}" height="${p.l}" fill="none" stroke="#c8cdd6" stroke-width="3"/>`;
+  for (let z = 100; z < spec.l; z += 100) {
+    parts += `<line x1="${z}" y1="0" x2="${z}" y2="${H}" stroke="#d7dce3" stroke-width="2"/>` +
+      `<text x="${z}" y="${H + 26}" font-size="20" text-anchor="middle" fill="#888" font-family="system-ui">${z / 100}m</text>`;
+  }
+  upper.forEach((p) => {
+    parts += `<rect x="${p.z}" y="${p.x}" width="${p.l}" height="${p.w}" fill="none" stroke="#9aa3af" stroke-width="2" stroke-dasharray="8 6"/>`;
   });
-  inLevel.forEach((p) => {
+  ground.forEach((p, i) => {
     const col = "#" + colorFor(p.pkg.name).getHexString();
-    parts += `<rect x="${p.x}" y="${p.z}" width="${p.w}" height="${p.l}" fill="${col}" fill-opacity="0.85" stroke="#1e293b" stroke-width="3"/>`;
-    const fs = Math.max(16, Math.min(p.w, p.l) * 0.24);
+    parts += `<rect x="${p.z}" y="${p.x}" width="${p.l}" height="${p.w}" fill="${col}" fill-opacity="0.9" stroke="#1e293b" stroke-width="2.5"/>`;
     let label = p.pkg.name;
     if (label.length > 12) label = label.slice(0, 11) + "…";
-    parts += `<text x="${p.x + p.w / 2}" y="${p.z + p.l / 2}" dy="0.35em" font-size="${fs}" text-anchor="middle" fill="#0b1220" font-family="system-ui" font-weight="bold">${esc(label)}</text>`;
+    if (cnt[i] > 1) label += " ×" + cnt[i];
+    const fs = Math.max(13, Math.min(p.l, p.w) * 0.35);
+    const cx = p.z + p.l / 2, cy = p.x + p.w / 2;
+    if (p.w > p.l) {
+      parts += `<text transform="rotate(-90 ${cx} ${cy})" x="${cx}" y="${cy}" dy="0.35em" font-size="${fs}" text-anchor="middle" fill="#0b1220" font-family="system-ui" font-weight="bold">${esc(label)}</text>`;
+    } else {
+      parts += `<text x="${cx}" y="${cy}" dy="0.35em" font-size="${fs}" text-anchor="middle" fill="#0b1220" font-family="system-ui" font-weight="bold">${esc(label)}</text>`;
+    }
   });
-  return `<svg viewBox="-16 -46 ${spec.w + 32} ${spec.l + 96}" xmlns="http://www.w3.org/2000/svg" style="max-height:270px;max-width:72%">` +
-    `<text x="${spec.w / 2}" y="-12" font-size="30" text-anchor="middle" fill="#16a34a" font-family="system-ui" font-weight="bold">▲ ÖN</text>` +
+
+  return `<svg viewBox="-8 -44 ${W + 16} ${H + 78}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="#f6f8fb"/>` +
     parts +
-    `<rect x="0" y="0" width="${spec.w}" height="${spec.l}" fill="none" stroke="#94a3b8" stroke-width="4"/>` +
-    `<text x="${spec.w / 2}" y="${spec.l + 36}" font-size="30" text-anchor="middle" fill="#ea580c" font-family="system-ui" font-weight="bold">▼ ARKA / KAPI</text>` +
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="none" stroke="#64748b" stroke-width="4"/>` +
+    `<text x="0" y="-14" font-size="26" text-anchor="start" fill="#16a34a" font-family="system-ui" font-weight="bold">◀ ÖN (dolum başlar)</text>` +
+    `<text x="${W}" y="-14" font-size="26" text-anchor="end" fill="#ea580c" font-family="system-ui" font-weight="bold">KAPI ▶</text>` +
+    `</svg>`;
+}
+
+function sideViewSVG(placements, spec) {
+  // Uzunluk yatay, yükseklik dikey: istif duvarı görünümü
+  const W = spec.l, H = spec.h;
+  let parts = "";
+  for (let z = 100; z < spec.l; z += 100) {
+    parts += `<line x1="${z}" y1="0" x2="${z}" y2="${H}" stroke="#d7dce3" stroke-width="2"/>` +
+      `<text x="${z}" y="${H + 26}" font-size="20" text-anchor="middle" fill="#888" font-family="system-ui">${z / 100}m</text>`;
+  }
+  for (let h = 50; h < spec.h; h += 50) {
+    const y = H - h;
+    parts += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#e2e7ee" stroke-width="1.5"/>` +
+      `<text x="-8" y="${y}" dy="0.32em" font-size="20" text-anchor="end" fill="#888" font-family="system-ui">${h}</text>`;
+  }
+  placements.slice().sort((a, b) => a.x - b.x).forEach((p) => {
+    const col = "#" + colorFor(p.pkg.name).getHexString();
+    parts += `<rect x="${p.z}" y="${H - p.y - p.h}" width="${p.l}" height="${p.h}" fill="${col}" fill-opacity="0.85" stroke="#1e293b" stroke-width="2"/>`;
+  });
+
+  return `<svg viewBox="-56 -40 ${W + 72} ${H + 74}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="#f6f8fb"/>` +
+    parts +
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="none" stroke="#64748b" stroke-width="4"/>` +
+    `<text x="0" y="-12" font-size="26" text-anchor="start" fill="#16a34a" font-family="system-ui" font-weight="bold">◀ ÖN</text>` +
+    `<text x="${W}" y="-12" font-size="26" text-anchor="end" fill="#ea580c" font-family="system-ui" font-weight="bold">KAPI ▶</text>` +
+    `<text x="${W + 8}" y="${H}" dy="0.32em" font-size="20" fill="#888" font-family="system-ui">cm</text>` +
     `</svg>`;
 }
 
@@ -760,33 +799,36 @@ function buildPrintArea() {
   const res = state.result;
   const pa = $("printArea");
   const dateStr = new Date().toLocaleString("tr-TR");
-  let html = `<h1>🚛 Araç Yükleme Raporu</h1>` +
-    `<div class="meta">${esc(res.spec.name)} • İç ölçü ${res.spec.w}×${res.spec.l}×${res.spec.h} cm • ` +
-    `Brüt ${res.grossVolume} m³ • Fire %${res.firePct} • Kullanılabilir ${res.usableVolume} m³ • ${dateStr}</div>`;
+  let html = `<h1>🚛 Araç Yükleme Raporu</h1>`;
 
   res.vehicles.forEach((v, vi) => {
     const s = res.stats[vi];
+    const agg = {}, order = [];
+    v.placements.forEach((p) => {
+      if (!agg[p.pkg.name]) { agg[p.pkg.name] = { count: 0, vol: 0 }; order.push(p.pkg.name); }
+      agg[p.pkg.name].count++;
+      agg[p.pkg.name].vol += (p.w * p.h * p.l) / 1e6;
+    });
+
     html += `<section class="veh">` +
       `<h2>Araç ${vi + 1} — ${esc(res.spec.name)}</h2>` +
-      `<table><tr><th>Paket sayısı</th><th>Yüklenen hacim</th><th>Kullanılabilir hacim</th><th>Doluluk</th></tr>` +
-      `<tr><td>${s.count}</td><td>${s.usedVolume} m³</td><td>${res.usableVolume} m³</td><td><b>%${s.fillRate}</b></td></tr></table>`;
+      `<div class="meta">İç ölçü ${res.spec.w}×${res.spec.l}×${res.spec.h} cm • Brüt ${res.grossVolume} m³ • Fire %${res.firePct} • Kullanılabilir ${res.usableVolume} m³ • ${dateStr}</div>` +
+      `<table><tr><th>Paket sayısı</th><th>Yüklenen hacim</th><th>Doluluk</th></tr>` +
+      `<tr><td>${s.count}</td><td>${s.usedVolume} m³</td><td><b>%${s.fillRate}</b></td></tr></table>` +
 
-    const levels = [...new Set(v.placements.map((p) => Math.round(p.y * 10) / 10))].sort((a, b) => a - b);
-    html += `<h3>Yerleşim şeması (üstten görünüm, taban tabana)</h3>`;
-    if (!levels.length) html += `<p>Bu araç boş.</p>`;
-    levels.forEach((lv, li) => {
-      html += `<h4 style="margin:8px 0 2px;font-size:11px;color:#555">Taban ${li + 1} — zeminden ${lv} cm yüksekte</h4>` +
-        planSVG(v.placements, res.spec, lv);
-    });
+      `<div class="diag"><h4>① Üstten görünüm — taban planı (kesikli çizgi: üstündeki katmanlar, üst kenar = aracın solu)</h4>${topViewSVG(v.placements, res.spec)}</div>` +
+      `<div class="diag"><h4>② Yandan kesit — yükseklik dağılımı (cm)</h4>${sideViewSVG(v.placements, res.spec)}</div>` +
 
-    html += `<h3>Yükleme sırası</h3>` +
-      `<table><tr><th>#</th><th>Ürün</th><th>Ölçü (cm)</th><th>Kural</th><th>Yön</th><th>Konum</th><th>Katman</th></tr>`;
-    v.placements.forEach((p, i) => {
-      const dir = p.pkg.loadDir === "ENINE" ? "Enine" : p.pkg.loadDir === "BOYUNA" ? "Boyuna" : "Serbest";
-      html += `<tr><td>${i + 1}</td><td>${esc(p.pkg.name)}</td><td>${p.w}×${p.l}×${p.h}</td>` +
-        `<td>${p.pkg.rule}</td><td>${dir}</td><td>${posLabel(p, res.spec)}</td><td>${p.stackLevel + 1}</td></tr>`;
+      `<h3>Ürün özeti</h3>` +
+      `<table><tr><th style="width:5%"></th><th>Ürün</th><th>Adet</th><th>Hacim (m³)</th></tr>`;
+    order.forEach((n) => {
+      const c = "#" + colorFor(n).getHexString();
+      html += `<tr><td><span class="sw" style="background:${c}"></span></td>` +
+        `<td>${esc(n)}</td><td>${agg[n].count}</td><td>${agg[n].vol.toFixed(2)}</td></tr>`;
     });
-    html += `</table></section>`;
+    html += `</table>` +
+      `<p class="seq"><b>Yükleme sırası:</b> ${order.map(esc).join(" → ")}</p>` +
+      `</section>`;
   });
 
   if (res.unplaced.length) {
