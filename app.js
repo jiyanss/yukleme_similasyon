@@ -12,11 +12,11 @@ const VEHICLE_TYPES = [
 ];
 
 const DEMO = [
-  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 10, Kural: "STANDART", Istif: "", Yukleme: "BOYUNA" },
+  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 50, Kural: "STANDART", Istif: "", Yukleme: "BOYUNA" },
   { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: "", Yukleme: "ENINE" },
-  { UrunKod: "Komodin",    En: 180, Boy: 110, Yukseklik: 16, Adet: 20, Kural: "STANDART", Istif: "", Yukleme: "" },
-  { UrunKod: "Markiz",     En: 40,  Boy: 40,  Yukseklik: 40, Adet: 10, Kural: "KIRILGAN", Istif: "", Yukleme: "" },
-  { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "KIRILGAN", Istif: "", Yukleme: "" },
+  { UrunKod: "Komodin",    En: 50,  Boy: 50,  Yukseklik: 40, Adet: 20, Kural: "STANDART", Istif: "", Yukleme: "" },
+  { UrunKod: "Markiz",     En: 40,  Boy: 120, Yukseklik: 40, Adet: 10, Kural: "STANDART", Istif: "", Yukleme: "" },
+  { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "DIK",      Istif: "", Yukleme: "" },
 ];
 
 const state = { packages: [], result: null, activeVehicle: 0 };
@@ -621,7 +621,7 @@ VEHICLE_TYPES.forEach((v, i) => {
 });
 
  $("runBtn").addEventListener("click", runSim);
- $("demoBtn").addEventListener("click", () => { state.packages = DEMO.map((d) => ({ ...d })); resetForm(); renderTable(); });
+ $("Btn").addEventListener("click", () => { state.packages = .map((d) => ({ ...d })); resetForm(); renderTable(); });
 
  $("fileInput").addEventListener("change", (e) => {
   if (e.target.files[0]) handleFile(e.target.files[0]);
