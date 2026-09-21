@@ -1,8 +1,10 @@
 // ═══════════════════════════════════════════════════════
 //  Yükleme Simülasyon Motoru — 3D Bin Packing
 //  Yöntem: First-Fit Decreasing + Extreme Points
-//  Ölçüler: cm | Kullanım: PackingEngine.simulate(paketler, aracOlcu, aracAdedi)
-//  Yön (loadDir): "" serbest | "ENINE" boy→araç eni | "BOYUNA" boy→araç boyu
+//  Ölçüler: cm | simulate(paketler, aracOlcu, aracAdedi, fireYuzde)
+//  Yön: "" serbest | "ENINE" boy→araç eni | "BOYUNA" boy→araç boyu
+//  Öncelik: küçük sayı önce yüklenir
+//  Fire: kullanılabilir hacim = brüt × (1 - fire/100), aşılırsa paket o araca yüklenmez
 //  İstif: boşsa otomatik = floor(araç yüksekliği / paketin o duruştaki yüksekliği)
 // ═══════════════════════════════════════════════════════
 var PackingEngine = (function () {
@@ -10,17 +12,17 @@ var PackingEngine = (function () {
 
   var RULE_ORDER = { YERDE: 0, STANDART: 1, DIK: 1, KIRILGAN: 2 };
 
-  // Adetleri tekil paketlere aç, kural + hacme göre sırala
   function prepareItems(packages) {
     var items = [];
     packages.forEach(function (p) {
       var qty = Math.max(1, parseInt(p.Adet, 10) || 1);
       var dir = String(p.Yukleme || "").trim().toUpperCase();
       if (dir !== "ENINE" && dir !== "BOYUNA") dir = "";
-      // Kullanıcı istif kısıtı: boşsa null → motor otomatik hesaplar
       var stackRaw = String(p.Istif === undefined || p.Istif === null ? "" : p.Istif).trim();
       var stackInput = stackRaw === "" ? null : parseInt(stackRaw, 10);
       if (stackInput !== null && (isNaN(stackInput) || stackInput < 1)) stackInput = null;
+      var prio = parseInt(p.Oncelik, 10);
+      if (isNaN(prio)) prio = 99;
       for (var i = 0; i < qty; i++) {
         items.push({
           id: p.UrunKod + "-" + (i + 1),
@@ -29,10 +31,12 @@ var PackingEngine = (function () {
           rule: p.Kural || "STANDART",
           maxStackInput: stackInput,
           loadDir: dir,
+          oncelik: prio,
         });
       }
     });
     items.sort(function (a, b) {
+      if (a.oncelik !== b.oncelik) return a.oncelik - b.oncelik;
       var ro = RULE_ORDER[a.rule] - RULE_ORDER[b.rule];
       if (ro !== 0) return ro;
       return b.w * b.l * b.h - a.w * a.l * a.h;
@@ -40,7 +44,6 @@ var PackingEngine = (function () {
     return items;
   }
 
-  // İzinli dönüşler. d = [En, Boy, Yükseklik]
   // w = araç genişliği (x), l = araç uzunluğu (z), h = dikey (y)
   function getRotations(item) {
     if (item.rule === "DIK") return [{ w: item.w, l: item.l, h: item.h }];
@@ -72,8 +75,8 @@ var PackingEngine = (function () {
       if (!seen[key]) { seen[key] = 1; out.push({ w: pm[0], l: pm[1], h: pm[2] }); }
     });
 
-    // Akıllı sıralama: araç enini en çok dolduran dönüş önce,
-    // eşitlikte taban alanı büyük (yatay) önce
+    // Akıllı sıralama: aracın enini en çok dolduran önce → yan şerit minik kalır,
+    // açılan şeriğe sonraki parçalar dikine yerleşebilir
     out.sort(function (a, b) {
       if (b.w !== a.w) return b.w - a.w;
       return (b.w * b.l) - (a.w * a.l);
@@ -105,7 +108,7 @@ var PackingEngine = (function () {
     return support / total >= 0.75;
   }
 
-  // Kırılğanın üstüne yasak + katman limiti (maxStack = toplam katman sayısı)
+  // Kırılğanın üstüne yasak + katman limiti
   function stackingOk(placements, box, item, maxStack) {
     var level = 0;
     for (var i = 0; i < placements.length; i++) {
@@ -123,8 +126,13 @@ var PackingEngine = (function () {
     return true;
   }
 
-  function tryPlace(vehicle, item, spec) {
+  function tryPlace(vehicle, item, spec, usableVol) {
     var rotations = getRotations(item);
+    var itemVol = (item.w * item.l * item.h) / 1e6;
+
+    // FIRE kontrolü: kullanılabilir hacmi aşacak paket bu araca girmez
+    if (vehicle.usedVol + itemVol > usableVol + 1e-6) return false;
+
     var points = vehicle.points.slice().sort(function (a, b) {
       return a.z - b.z || a.x - b.x || a.y - b.y;
     });
@@ -137,10 +145,8 @@ var PackingEngine = (function () {
         if (box.y + box.h > spec.h + 0.01) continue;
         if (box.z + box.l > spec.l + 0.01) continue;
 
-        // ═══ OTOMATİK İSTİF ═══
-        // Bu duruşta üst üste kaç katman fiziksel olarak sığar?
+        // Otomatik istif: bu duruşta fiziksel olarak kaç katman sığar?
         var autoStack = Math.max(1, Math.floor(spec.h / box.h));
-        // Kullanıcı kısıtı varsa ikisinden kısıtlayıcı olan kazanır
         var effMaxStack = item.maxStackInput !== null
           ? Math.min(item.maxStackInput, autoStack)
           : autoStack;
@@ -153,6 +159,7 @@ var PackingEngine = (function () {
           x: box.x, y: box.y, z: box.z, w: box.w, l: box.l, h: box.h,
           stackLevel: box._stackLevel, pkg: item,
         });
+        vehicle.usedVol += itemVol;
         vehicle.points.push(
           { x: box.x + box.w, y: box.y, z: box.z },
           { x: box.x, y: box.y + box.h, z: box.z },
@@ -164,32 +171,35 @@ var PackingEngine = (function () {
     return false;
   }
 
-  function simulate(packages, vehicleSpec, vehicleCount) {
+  function simulate(packages, vehicleSpec, vehicleCount, firePct) {
+    firePct = Math.min(50, Math.max(0, +firePct || 0));
     var items = prepareItems(packages);
+    var grossVol = (vehicleSpec.w * vehicleSpec.h * vehicleSpec.l) / 1e6;
+    var usableVol = grossVol * (1 - firePct / 100);
+
     var vehicles = [];
     for (var i = 0; i < vehicleCount; i++)
-      vehicles.push({ placements: [], points: [{ x: 0, y: 0, z: 0 }] });
+      vehicles.push({ placements: [], points: [{ x: 0, y: 0, z: 0 }], usedVol: 0 });
     var unplaced = [];
 
     items.forEach(function (item) {
       for (var vi = 0; vi < vehicles.length; vi++) {
-        if (tryPlace(vehicles[vi], item, vehicleSpec)) return;
+        if (tryPlace(vehicles[vi], item, vehicleSpec, usableVol)) return;
       }
       unplaced.push(item);
     });
 
-    var totalVol = (vehicleSpec.w * vehicleSpec.h * vehicleSpec.l) / 1e6;
     var stats = vehicles.map(function (v) {
-      var used = v.placements.reduce(function (s, p) {
-        return s + (p.w * p.h * p.l) / 1e6;
-      }, 0);
       return {
         count: v.placements.length,
-        usedVolume: +used.toFixed(2),
-        fillRate: +((used / totalVol) * 100).toFixed(1),
+        usedVolume: +v.usedVol.toFixed(2),
+        fillRate: usableVol > 0 ? +((v.usedVol / usableVol) * 100).toFixed(1) : 0,
       };
     });
-    return { vehicles: vehicles, unplaced: unplaced, stats: stats, spec: vehicleSpec };
+    return {
+      vehicles: vehicles, unplaced: unplaced, stats: stats, spec: vehicleSpec,
+      firePct: firePct, grossVolume: +grossVol.toFixed(2), usableVolume: +usableVol.toFixed(2),
+    };
   }
 
   return { simulate: simulate };
