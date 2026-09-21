@@ -30,6 +30,96 @@ function grossVolume() {
 function usableVolume() {
   return state.result ? state.result.usableVolume : 0;
 }
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ═══════════ Ürün Kataloğu (localStorage) ═══════════
+const CAT_KEY = "ys_catalog_v1";
+
+function loadCatalog() {
+  try { return JSON.parse(localStorage.getItem(CAT_KEY)) || []; }
+  catch (e) { return []; }
+}
+function saveCatalog(list) {
+  localStorage.setItem(CAT_KEY, JSON.stringify(list));
+  renderCatalog();
+}
+function addToCatalog(items) {
+  if (!items.length) return;
+  const cat = loadCatalog();
+  items.forEach((p) => {
+    const entry = {
+      UrunKod: p.UrunKod, En: p.En, Boy: p.Boy, Yukseklik: p.Yukseklik,
+      Kural: p.Kural || "", Istif: p.Istif || "", Oncelik: p.Oncelik || "", Yukleme: p.Yukleme || "",
+    };
+    const i = cat.findIndex((c) => c.UrunKod === p.UrunKod);
+    if (i >= 0) cat[i] = entry; else cat.push(entry);
+  });
+  saveCatalog(cat);
+}
+function renderCatalog() {
+  const cat = loadCatalog();
+  $("catEmpty").classList.toggle("hidden", cat.length > 0);
+  $("catWrap").classList.toggle("hidden", cat.length === 0);
+
+  const tb = $("catBody");
+  tb.innerHTML = "";
+  cat.forEach((c, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${esc(c.UrunKod)}</td>` +
+      `<td>${c.En}×${c.Boy}×${c.Yukseklik}</td>` +
+      `<td>${c.Kural || "STANDART"}</td><td>${c.Yukleme || "-"}</td>` +
+      `<td><button class="del delcat" data-i="${i}" title="Katalogdan sil">✕</button></td>`;
+    tb.appendChild(tr);
+  });
+
+  const sel = $("catSelect");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Katalogdan seç (ölçüler otomatik dolar) —</option>';
+  cat.forEach((c, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = `${c.UrunKod} (${c.En}×${c.Boy}×${c.Yukseklik})`;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+  if (sel.value !== cur) sel.value = "";
+}
+
+ $("catSelect").addEventListener("change", () => {
+  if ($("catSelect").value === "") return;
+  const c = loadCatalog()[+$("catSelect").value];
+  if (!c) return;
+  $("mUrunKod").value = c.UrunKod;
+  $("mEn").value = c.En;
+  $("mBoy").value = c.Boy;
+  $("mYukseklik").value = c.Yukseklik;
+  $("mKural").value = c.Kural || "STANDART";
+  $("mIstif").value = c.Istif || "";
+  $("mOncelik").value = c.Oncelik || "";
+  $("mYukleme").value = c.Yukleme || "";
+  editingIndex = -1;
+  $("addBtn").textContent = "+ Ekle";
+  $("cancelEditBtn").classList.add("hidden");
+  $("catSelect").value = "";
+  $("mAdet").focus();
+});
+
+ $("catBody").addEventListener("click", (e) => {
+  if (e.target.classList.contains("delcat")) {
+    const cat = loadCatalog();
+    cat.splice(+e.target.dataset.i, 1);
+    saveCatalog(cat);
+  }
+});
+
+ $("catClearBtn").addEventListener("click", () => {
+  if (confirm("Kataloğun tamamı silinecek. Emin misin?")) {
+    localStorage.removeItem(CAT_KEY);
+    renderCatalog();
+  }
+});
 
 // ═══════════ Manuel giriş ═══════════
 function resetForm() {
@@ -41,6 +131,7 @@ function resetForm() {
   $("mIstif").value = "";
   $("mOncelik").value = "";
   $("mYukleme").value = "";
+  $("mSaveCat").checked = false;
   $("addBtn").textContent = "+ Ekle";
   $("cancelEditBtn").classList.add("hidden");
   $("mUrunKod").focus();
@@ -75,6 +166,7 @@ function startEdit(i) {
   };
   if (editingIndex >= 0) state.packages[editingIndex] = pkg;
   else state.packages.push(pkg);
+  if ($("mSaveCat").checked) { addToCatalog([pkg]); $("mSaveCat").checked = false; }
   resetForm();
   renderTable();
 });
@@ -82,7 +174,9 @@ function startEdit(i) {
  $("cancelEditBtn").addEventListener("click", resetForm);
 
 document.querySelector(".mform").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); $("addBtn").click(); }
+  if (e.key === "Enter" && e.target.tagName !== "SELECT" && e.target.type !== "checkbox") {
+    e.preventDefault(); $("addBtn").click();
+  }
 });
 
 // ═══════════ Excel şablonu indir ═══════════
@@ -205,6 +299,7 @@ function handleFile(file) {
         return;
       }
       state.packages = state.packages.concat(good);
+      addToCatalog(good); // otomatik katalog
       resetForm();
       renderTable();
       showErrors(errors);
@@ -225,7 +320,7 @@ function renderTable() {
   state.packages.forEach((p, i) => {
     total += p.Adet;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${p.UrunKod}</td><td>${p.En}</td><td>${p.Boy}</td><td>${p.Yukseklik}</td>` +
+    tr.innerHTML = `<td>${esc(p.UrunKod)}</td><td>${p.En}</td><td>${p.Boy}</td><td>${p.Yukseklik}</td>` +
       `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "oto"}</td>` +
       `<td>${p.Oncelik || "-"}</td><td>${p.Yukleme || "-"}</td>` +
       `<td><button class="edit" data-i="${i}" title="Düzenle">✎</button> ` +
@@ -314,7 +409,7 @@ function renderResults() {
     const g = {};
     res.unplaced.forEach((u) => (g[u.name] = (g[u.name] || 0) + 1));
     $("unplacedList").innerHTML =
-      Object.entries(g).map(([n, c]) => `<b>${n}</b> × ${c}`).join(" • ") +
+      Object.entries(g).map(([n, c]) => `<b>${esc(n)}</b> × ${c}`).join(" • ") +
       `<br><span style="color:#fca5a5">Araç adedini artırmayı, fire oranını azaltmayı veya Öncelik ayarlarını deneyin.</span>`;
   } else ub.classList.add("hidden");
 }
@@ -627,6 +722,91 @@ function startPlay(keepPos) {
 });
  $("loadSlider").addEventListener("input", (e) => { stopPlay(); applyVisibility(+e.target.value); });
 
+// ═══════════ PDF / Yazdırma Raporu ═══════════
+function posLabel(p, spec) {
+  const zs = p.z + p.l / 2, xs = p.x + p.w / 2;
+  const zt = zs < spec.l / 3 ? "ön" : zs > (2 * spec.l) / 3 ? "arka" : "orta";
+  const xt = xs < spec.w / 3 ? "sol" : xs > (2 * spec.w) / 3 ? "sağ" : "orta";
+  if (xt === "orta" && zt === "orta") return "merkez";
+  if (xt === "orta") return zt;
+  if (zt === "orta") return xt;
+  return zt + "-" + xt;
+}
+
+function planSVG(placements, spec, level) {
+  const inLevel = placements.filter((p) => Math.abs(p.y - level) < 0.05);
+  const below = placements.filter((p) => p.y < level - 0.05);
+  let parts = "";
+  below.forEach((p) => {
+    parts += `<rect x="${p.x}" y="${p.z}" width="${p.w}" height="${p.l}" fill="none" stroke="#c8cdd6" stroke-width="3"/>`;
+  });
+  inLevel.forEach((p) => {
+    const col = "#" + colorFor(p.pkg.name).getHexString();
+    parts += `<rect x="${p.x}" y="${p.z}" width="${p.w}" height="${p.l}" fill="${col}" fill-opacity="0.85" stroke="#1e293b" stroke-width="3"/>`;
+    const fs = Math.max(16, Math.min(p.w, p.l) * 0.24);
+    let label = p.pkg.name;
+    if (label.length > 12) label = label.slice(0, 11) + "…";
+    parts += `<text x="${p.x + p.w / 2}" y="${p.z + p.l / 2}" dy="0.35em" font-size="${fs}" text-anchor="middle" fill="#0b1220" font-family="system-ui" font-weight="bold">${esc(label)}</text>`;
+  });
+  return `<svg viewBox="-16 -46 ${spec.w + 32} ${spec.l + 96}" xmlns="http://www.w3.org/2000/svg" style="max-height:270px;max-width:72%">` +
+    `<text x="${spec.w / 2}" y="-12" font-size="30" text-anchor="middle" fill="#16a34a" font-family="system-ui" font-weight="bold">▲ ÖN</text>` +
+    parts +
+    `<rect x="0" y="0" width="${spec.w}" height="${spec.l}" fill="none" stroke="#94a3b8" stroke-width="4"/>` +
+    `<text x="${spec.w / 2}" y="${spec.l + 36}" font-size="30" text-anchor="middle" fill="#ea580c" font-family="system-ui" font-weight="bold">▼ ARKA / KAPI</text>` +
+    `</svg>`;
+}
+
+function buildPrintArea() {
+  const res = state.result;
+  const pa = $("printArea");
+  const dateStr = new Date().toLocaleString("tr-TR");
+  let html = `<h1>🚛 Araç Yükleme Raporu</h1>` +
+    `<div class="meta">${esc(res.spec.name)} • İç ölçü ${res.spec.w}×${res.spec.l}×${res.spec.h} cm • ` +
+    `Brüt ${res.grossVolume} m³ • Fire %${res.firePct} • Kullanılabilir ${res.usableVolume} m³ • ${dateStr}</div>`;
+
+  res.vehicles.forEach((v, vi) => {
+    const s = res.stats[vi];
+    html += `<section class="veh">` +
+      `<h2>Araç ${vi + 1} — ${esc(res.spec.name)}</h2>` +
+      `<table><tr><th>Paket sayısı</th><th>Yüklenen hacim</th><th>Kullanılabilir hacim</th><th>Doluluk</th></tr>` +
+      `<tr><td>${s.count}</td><td>${s.usedVolume} m³</td><td>${res.usableVolume} m³</td><td><b>%${s.fillRate}</b></td></tr></table>`;
+
+    const levels = [...new Set(v.placements.map((p) => Math.round(p.y * 10) / 10))].sort((a, b) => a - b);
+    html += `<h3>Yerleşim şeması (üstten görünüm, taban tabana)</h3>`;
+    if (!levels.length) html += `<p>Bu araç boş.</p>`;
+    levels.forEach((lv, li) => {
+      html += `<h4 style="margin:8px 0 2px;font-size:11px;color:#555">Taban ${li + 1} — zeminden ${lv} cm yüksekte</h4>` +
+        planSVG(v.placements, res.spec, lv);
+    });
+
+    html += `<h3>Yükleme sırası</h3>` +
+      `<table><tr><th>#</th><th>Ürün</th><th>Ölçü (cm)</th><th>Kural</th><th>Yön</th><th>Konum</th><th>Katman</th></tr>`;
+    v.placements.forEach((p, i) => {
+      const dir = p.pkg.loadDir === "ENINE" ? "Enine" : p.pkg.loadDir === "BOYUNA" ? "Boyuna" : "Serbest";
+      html += `<tr><td>${i + 1}</td><td>${esc(p.pkg.name)}</td><td>${p.w}×${p.l}×${p.h}</td>` +
+        `<td>${p.pkg.rule}</td><td>${dir}</td><td>${posLabel(p, res.spec)}</td><td>${p.stackLevel + 1}</td></tr>`;
+    });
+    html += `</table></section>`;
+  });
+
+  if (res.unplaced.length) {
+    const g = {};
+    res.unplaced.forEach((u) => (g[u.name] = (g[u.name] || 0) + 1));
+    html += `<div class="warn"><b>⚠ Yüklenemeyen ürünler:</b> ` +
+      Object.entries(g).map(([n, c]) => `${esc(n)} × ${c}`).join(" • ") +
+      `<br>Araç adedini artırın veya fire oranını azaltın.</div>`;
+  }
+
+  html += `<div class="stamp">Design by Sait — Araç Yükleme Simülatörü</div>`;
+  pa.innerHTML = html;
+}
+
+ $("printBtn").addEventListener("click", () => {
+  if (!state.result) { alert("Önce simülasyonu çalıştırın."); return; }
+  buildPrintArea();
+  window.print();
+});
+
 // ═══════════ Olay bağlama + başlangıç ═══════════
 VEHICLE_TYPES.forEach((v, i) => {
   const o = document.createElement("option");
@@ -662,3 +842,5 @@ if (typeof THREE === "undefined") {
   document.body.insertAdjacentHTML("afterbegin",
     '<div style="background:#7f1d1d;color:#fff;padding:10px;text-align:center;font-size:14px">⚠ 3D kütüphanesi yüklenemedi — internet bağlantınızı / proxy ayarlarınızı kontrol edin.</div>');
 }
+
+renderCatalog(); // sayfa açılışında katalogu yükle
