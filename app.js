@@ -86,10 +86,10 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
   const wb = XLSX.utils.book_new();
   const data = [
     ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif", "Yukleme"],
-    ["Yatak", 160, 200, 30, 5, "", "", "BOYUNA"],
-    ["BazaBaslik", 90, 200, 20, 5, "", "", "ENINE"],
-    ["Komodin", 180, 110, 16, 10, "", "", ""],
-    ["Markiz", 40, 40, 40, 5, "KIRILGAN", "", ""],
+    ["Yatak", 160, 200, 30, 50, "", "", "BOYUNA"],
+    ["BazaBaslik", 90, 200, 20, 10, "", "", "ENINE"],
+    ["Komodin", 50, 50, 40, 20, "", "", ""],
+    ["Markiz", 40, 120, 40, 10, "", "", ""],
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
   ws["!cols"] = [{ wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 7 }, { wch: 12 }, { wch: 8 }, { wch: 10 }];
@@ -110,6 +110,8 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
     ["YERDE", "En alt katmanda durur"],
     ["ENINE", "Paketin BOY ölçüsü aracın genişliğine yatar"],
     ["BOYUNA", "Paketin BOY ölçüsü aracın uzunluğuna paralel durur"],
+    [],
+    ["Design by Sait", "Araç Yükleme Simülatörü"],
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(help);
   ws2["!cols"] = [{ wch: 22 }, { wch: 52 }];
@@ -129,7 +131,6 @@ const COLS = {
   Yukleme: ["yukleme", "yuklemeyonu", "yukyonu", "yuklemesekli", "yon"],
 };
 
-// Türkçe karakterleri ayıkla: "Yükleme" → "yukleme" gibi eşleşsin
 function normKey(k) {
   return k.toLowerCase()
     .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ş/g, "s").replace(/Ş/g, "s")
@@ -148,7 +149,7 @@ function pickCol(row, candidates) {
 }
 
 function num(v) {
-  const n = parseFloat(String(v).replace(",", ".")); // TR ondalık virgülü
+  const n = parseFloat(String(v).replace(",", "."));
   return isNaN(n) ? 0 : n;
 }
 
@@ -415,11 +416,13 @@ function updateVehLabel(visibleCount) {
   g.fillStyle = "#e2e8f0";
   g.font = "bold 48px system-ui";
   g.fillText(`Araç ${state.activeVehicle + 1}`, 190, canvas.height / 2);
-    // imza
+
+  // imza
   g.font = "bold 30px system-ui";
   g.textAlign = "right"; g.textBaseline = "alphabetic";
   g.fillStyle = "rgba(147,197,253,0.75)";
   g.fillText("Design by Sait", canvas.width - 30, canvas.height - 26);
+
   tex.needsUpdate = true;
 }
 
@@ -571,7 +574,7 @@ function hover(e, el) {
   } else tip.style.display = "none";
 }
 
-// ─── Animasyon + hız kontrolü (0.25x – 2x) ───
+// ─── Animasyon + hız kontrolü (0.10x – 3x) ───
 let playTimer = null;
 function stopPlay() {
   if (playTimer) { clearInterval(playTimer); playTimer = null; $("playBtn").textContent = "⏵ Yükleme animasyonu"; }
@@ -626,7 +629,7 @@ VEHICLE_TYPES.forEach((v, i) => {
 });
 
  $("runBtn").addEventListener("click", runSim);
- $("Btn").addEventListener("click", () => { state.packages = .map((d) => ({ ...d })); resetForm(); renderTable(); });
+ $("demoBtn").addEventListener("click", () => { state.packages = DEMO.map((d) => ({ ...d })); resetForm(); renderTable(); });
 
  $("fileInput").addEventListener("change", (e) => {
   if (e.target.files[0]) handleFile(e.target.files[0]);
