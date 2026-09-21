@@ -51,8 +51,10 @@
   .tab.active { background:#1d3a6b; border-color:#3b82f6; color:#fff; }
   #animControls { display:flex; align-items:center; gap:8px; font-size:12px; color:#94a3b8; flex-wrap:wrap; }
   #loadSlider { width:130px; accent-color:#3b82f6; }
-  #playBtn, #printBtn, #speedLabel { padding:6px 10px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
-  #printBtn:hover { border-color:#3b82f6; color:#e2e8f0; }
+  #playBtn, #printBtn, #recBtn, #speedLabel { padding:6px 10px; background:#111a2e; border:1px solid #334155; border-radius:8px; color:#94a3b8; font-size:12px; }
+  #printBtn:hover, #recBtn:hover { border-color:#3b82f6; color:#e2e8f0; }
+  #recBtn.recording { border-color:#ef4444; color:#f87171; animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { background:rgba(239,68,68,.15); } }
   #speedSelect { width:auto; padding:5px 8px; }
   #vehInfo { font-size:12px; color:#64748b; }
   #canvasWrap { position:relative; flex:1; min-height:340px; background:#0b1220; border:1px solid #1e293b; border-radius:12px; overflow:hidden; }
@@ -73,7 +75,7 @@
   .hidden { display:none !important; }
   @media (max-width:900px) { main { grid-template-columns:1fr; height:auto; } #canvasWrap { height:55vh; flex:none; } }
 
-   /* ═══ YAZDIRMA / PDF RAPOR ═══ */
+  /* ═══ YAZDIRMA / PDF RAPOR ═══ */
   #printArea { display:none; }
   @media print {
     @page { margin: 11mm; }
@@ -105,7 +107,7 @@
 
 <header>
   <h1>🚛 Araç Yükleme Simülatörü</h1>
-  <span class="subtitle">Katalogdan seç veya Excel yükle → araç seç → 3D simülasyon → PDF rapor</span>
+  <span class="subtitle">Katalogdan seç veya Excel yükle → araç seç → 3D simülasyon → PDF / Video</span>
   <span class="brand">✦ Design by Sait</span>
 </header>
 
@@ -225,6 +227,7 @@
           <option value="3">3x</option>
         </select>
         <button id="printBtn">🖨 PDF Rapor</button>
+        <button id="recBtn">🎬 Video kaydet</button>
       </div>
     </div>
     <div id="vehInfo"></div>
