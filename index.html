@@ -73,28 +73,31 @@
   .hidden { display:none !important; }
   @media (max-width:900px) { main { grid-template-columns:1fr; height:auto; } #canvasWrap { height:55vh; flex:none; } }
 
-  /* ═══ YAZDIRMA / PDF RAPOR ═══ */
+   /* ═══ YAZDIRMA / PDF RAPOR ═══ */
   #printArea { display:none; }
   @media print {
-    @page { margin: 12mm; }
+    @page { margin: 11mm; }
     body > *:not(#printArea) { display:none !important; }
     #printArea {
       display:block !important; color:#111; background:#fff;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; font-size:12px;
       -webkit-print-color-adjust:exact; print-color-adjust:exact;
     }
-    #printArea h1 { font-size:20px; margin-bottom:2px; }
-    #printArea .meta { color:#555; font-size:11px; margin-bottom:10px; }
-    #printArea .veh { page-break-before:always; }
-    #printArea .veh:first-of-type { page-break-before:auto; }
-    #printArea h2 { font-size:15px; margin:4px 0 8px; color:#1d4ed8; }
-    #printArea h3 { font-size:12px; margin:12px 0 4px; color:#333; }
-    #printArea table { width:100%; border-collapse:collapse; font-size:10.5px; margin-bottom:6px; }
-    #printArea th, #printArea td { border:1px solid #999; padding:3px 6px; text-align:left; }
+    #printArea h1 { font-size:19px; margin-bottom:2px; }
+    #printArea .meta { color:#555; font-size:10.5px; margin-bottom:6px; }
+    #printArea .veh { page-break-after:always; }
+    #printArea .veh:last-of-type { page-break-after:auto; }
+    #printArea h2 { font-size:15px; margin:0 0 4px; color:#1d4ed8; }
+    #printArea h3 { font-size:12px; margin:8px 0 3px; color:#333; }
+    #printArea table { width:100%; border-collapse:collapse; font-size:10.5px; margin-bottom:4px; }
+    #printArea th, #printArea td { border:1px solid #999; padding:2px 6px; text-align:left; }
     #printArea th { background:#eee; }
-    #printArea svg { max-height:270px; max-width:72%; display:block; margin:2px 0 4px; }
-    #printArea .warn { background:#fdf2f2; border:1px solid #c0392b; padding:8px; margin-top:12px; }
-    #printArea .stamp { margin-top:16px; padding-top:6px; border-top:1px solid #ccc; color:#2563eb; font-weight:700; font-size:11px; }
+    #printArea .diag h4 { font-size:11px; margin:2mm 0 1mm; color:#444; }
+    #printArea svg { width:100%; height:auto; display:block; }
+    #printArea .sw { display:inline-block; width:10px; height:10px; border:1px solid #666; vertical-align:middle; }
+    #printArea .seq { font-size:11px; margin:2mm 0 0; }
+    #printArea .warn { background:#fdf2f2; border:1px solid #c0392b; padding:6px; margin-top:8px; }
+    #printArea .stamp { margin-top:10px; padding-top:5px; border-top:1px solid #ccc; color:#2563eb; font-weight:700; font-size:11px; }
   }
 </style>
 </head>
