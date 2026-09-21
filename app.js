@@ -12,20 +12,23 @@ const VEHICLE_TYPES = [
 ];
 
 const DEMO = [
-  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 50, Kural: "STANDART", Istif: "", Yukleme: "BOYUNA" },
-  { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: "", Yukleme: "ENINE" },
-  { UrunKod: "Komodin",    En: 50,  Boy: 50,  Yukseklik: 40, Adet: 20, Kural: "STANDART", Istif: "", Yukleme: "" },
-  { UrunKod: "Markiz",     En: 40,  Boy: 120, Yukseklik: 40, Adet: 10, Kural: "STANDART", Istif: "", Yukleme: "" },
-  { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "DIK",      Istif: "", Yukleme: "" },
+  { UrunKod: "Yatak",      En: 160, Boy: 200, Yukseklik: 30, Adet: 50, Kural: "STANDART", Istif: "", Oncelik: "", Yukleme: "BOYUNA" },
+  { UrunKod: "BazaBaslik", En: 90,  Boy: 200, Yukseklik: 20, Adet: 10, Kural: "STANDART", Istif: "", Oncelik: "", Yukleme: "ENINE" },
+  { UrunKod: "Komodin",    En: 50,  Boy: 50,  Yukseklik: 40, Adet: 20, Kural: "STANDART", Istif: "", Oncelik: "", Yukleme: "" },
+  { UrunKod: "Markiz",     En: 40,  Boy: 120, Yukseklik: 40, Adet: 10, Kural: "STANDART", Istif: "", Oncelik: "", Yukleme: "" },
+  { UrunKod: "Ped",        En: 180, Boy: 200, Yukseklik: 8,  Adet: 20, Kural: "DIK",      Istif: "", Oncelik: "", Yukleme: "" },
 ];
 
 const state = { packages: [], result: null, activeVehicle: 0 };
 let editingIndex = -1;
 const $ = (id) => document.getElementById(id);
 
-function capVolume() {
+function grossVolume() {
   const s = state.result?.spec;
   return s ? (s.w * s.h * s.l) / 1e6 : 0;
+}
+function usableVolume() {
+  return state.result ? state.result.usableVolume : 0;
 }
 
 // ═══════════ Manuel giriş ═══════════
@@ -36,6 +39,7 @@ function resetForm() {
   $("mAdet").value = 1;
   $("mKural").value = "STANDART";
   $("mIstif").value = "";
+  $("mOncelik").value = "";
   $("mYukleme").value = "";
   $("addBtn").textContent = "+ Ekle";
   $("cancelEditBtn").classList.add("hidden");
@@ -51,6 +55,7 @@ function startEdit(i) {
   $("mAdet").value = p.Adet;
   $("mKural").value = p.Kural || "STANDART";
   $("mIstif").value = p.Istif || "";
+  $("mOncelik").value = p.Oncelik || "";
   $("mYukleme").value = p.Yukleme || "";
   editingIndex = i;
   $("addBtn").textContent = "✔ Güncelle";
@@ -66,7 +71,7 @@ function startEdit(i) {
   const pkg = {
     UrunKod: code, En: w, Boy: l, Yukseklik: h, Adet: qty,
     Kural: $("mKural").value, Istif: $("mIstif").value,
-    Yukleme: $("mYukleme").value,
+    Oncelik: $("mOncelik").value, Yukleme: $("mYukleme").value,
   };
   if (editingIndex >= 0) state.packages[editingIndex] = pkg;
   else state.packages.push(pkg);
@@ -85,14 +90,14 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
   if (typeof XLSX === "undefined") { alert("Excel kütüphanesi yüklenemedi (internet engeli olabilir)."); return; }
   const wb = XLSX.utils.book_new();
   const data = [
-    ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif", "Yukleme"],
-    ["Yatak", 160, 200, 30, 50, "", "", "BOYUNA"],
-    ["BazaBaslik", 90, 200, 20, 10, "", "", "ENINE"],
-    ["Komodin", 50, 50, 40, 20, "", "", ""],
-    ["Markiz", 40, 120, 40, 10, "", "", ""],
+    ["UrunKod", "En", "Boy", "Yukseklik", "Adet", "Kural", "Istif", "Oncelik", "Yukleme"],
+    ["Yatak", 160, 200, 30, 50, "", "", "", "BOYUNA"],
+    ["BazaBaslik", 90, 200, 20, 10, "", "", 1, "ENINE"],
+    ["Komodin", 50, 50, 40, 20, "", "", "", ""],
+    ["Markiz", 40, 120, 40, 10, "", "", "", ""],
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws["!cols"] = [{ wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 7 }, { wch: 12 }, { wch: 8 }, { wch: 10 }];
+  ws["!cols"] = [{ wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 7 }, { wch: 12 }, { wch: 8 }, { wch: 9 }, { wch: 10 }];
   XLSX.utils.book_append_sheet(wb, ws, "YuklemeListesi");
   const help = [
     ["ALAN", "AÇIKLAMA"],
@@ -100,7 +105,8 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
     ["En / Boy / Yukseklik", "Paket ölçüleri cm (zorunlu)"],
     ["Adet", "Kaç adet yüklenecek (boşsa 1)"],
     ["Kural", "STANDART / KIRILGAN / DIK / YERDE (boşsa STANDART)"],
-    ["Istif", "Üst üste maksimum katman sayısı (boşsa OTOMATİK: araç yüksekliğine göre hesaplanır)"],
+    ["Istif", "Üst üste maksimum katman (boşsa OTOMATİK: araç yüksekliğine göre)"],
+    ["Oncelik", "Küçük sayı ÖNCE yüklenir (boşsa hacme göre otomatik sıra)"],
     ["Yukleme", "ENINE / BOYUNA (boşsa serbest dönüş)"],
     [],
     ["KURAL / YÖN", "ANLAMI"],
@@ -111,10 +117,12 @@ document.querySelector(".mform").addEventListener("keydown", (e) => {
     ["ENINE", "Paketin BOY ölçüsü aracın genişliğine yatar"],
     ["BOYUNA", "Paketin BOY ölçüsü aracın uzunluğuna paralel durur"],
     [],
+    ["NOT", "Fire oranı uygulama ekranında Araç Seçimi bölümünde ayarlanır"],
+    [],
     ["Design by Sait", "Araç Yükleme Simülatörü"],
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(help);
-  ws2["!cols"] = [{ wch: 22 }, { wch: 52 }];
+  ws2["!cols"] = [{ wch: 22 }, { wch: 58 }];
   XLSX.utils.book_append_sheet(wb, ws2, "Aciklama");
   XLSX.writeFile(wb, "yukleme-listesi-sablon.xlsx");
 });
@@ -128,6 +136,7 @@ const COLS = {
   Adet: ["adet", "miktar", "qty"],
   Kural: ["kural", "yuklemekurali"],
   Istif: ["istif", "maxistif", "istifsayisi"],
+  Oncelik: ["oncelik", "onceliksirasi", "sira"],
   Yukleme: ["yukleme", "yuklemeyonu", "yukyonu", "yuklemesekli", "yon"],
 };
 
@@ -172,12 +181,13 @@ function parseRows(rows) {
     let rule = pickCol(row, COLS.Kural).toUpperCase().replace(/İ/g, "I").replace(/Ş/g, "S");
     if (!["STANDART", "KIRILGAN", "DIK", "YERDE"].includes(rule)) rule = "STANDART";
     const stack = pickCol(row, COLS.Istif);
+    const oncelik = pickCol(row, COLS.Oncelik);
     const yukleme = normDir(pickCol(row, COLS.Yukleme));
     if (!code || !w || !l || !h) {
       errors.push(`Satır ${idx + 2}: eksik/hatalı veri (Ürün kodu + En/Boy/Yükseklik gerekli)`);
       return;
     }
-    good.push({ UrunKod: code, En: w, Boy: l, Yukseklik: h, Adet: qty, Kural: rule, Istif: stack, Yukleme: yukleme });
+    good.push({ UrunKod: code, En: w, Boy: l, Yukseklik: h, Adet: qty, Kural: rule, Istif: stack, Oncelik: oncelik, Yukleme: yukleme });
   });
   return { good, errors };
 }
@@ -191,7 +201,7 @@ function handleFile(file) {
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
       const { good, errors } = parseRows(rows);
       if (!good.length) {
-        showErrors([...errors, "Geçerli satır yok. İlk satır başlık olmalı: UrunKod, En, Boy, Yukseklik, Adet, Kural, Istif, Yukleme"]);
+        showErrors([...errors, "Geçerli satır yok. Başlıklar: UrunKod, En, Boy, Yukseklik, Adet, Kural, Istif, Oncelik, Yukleme"]);
         return;
       }
       state.packages = state.packages.concat(good);
@@ -216,7 +226,8 @@ function renderTable() {
     total += p.Adet;
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${p.UrunKod}</td><td>${p.En}</td><td>${p.Boy}</td><td>${p.Yukseklik}</td>` +
-      `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "oto"}</td><td>${p.Yukleme || "-"}</td>` +
+      `<td>${p.Adet}</td><td>${p.Kural}</td><td>${p.Istif || "oto"}</td>` +
+      `<td>${p.Oncelik || "-"}</td><td>${p.Yukleme || "-"}</td>` +
       `<td><button class="edit" data-i="${i}" title="Düzenle">✎</button> ` +
       `<button class="del" data-i="${i}" title="Sil">✕</button></td>`;
     tb.appendChild(tr);
@@ -253,11 +264,13 @@ function runSim() {
   }
   const count = Math.min(20, Math.max(1, Math.round(+$("vCount").value || 1)));
   $("vCount").value = count;
+  const fire = Math.min(50, Math.max(0, num($("firePct").value)));
+  $("firePct").value = fire;
 
   const totalItems = state.packages.reduce((s, p) => s + p.Adet, 0);
   if (totalItems > 2000 && !confirm(`${totalItems} paket hesaplanacak, tarayıcı yavaşlayabilir. Devam edilsin mi?`)) return;
 
-  state.result = PackingEngine.simulate(state.packages, spec, count);
+  state.result = PackingEngine.simulate(state.packages, spec, count, fire);
   state.activeVehicle = 0;
   renderResults();
   buildScene();
@@ -277,10 +290,11 @@ function renderResults() {
 
   const s = res.stats[state.activeVehicle];
   const placed = res.vehicles.reduce((a, v) => a + v.placements.length, 0);
-  $("capStat").textContent = capVolume().toFixed(1);
+  $("capStat").textContent = usableVolume().toFixed(1);
   $("vehInfo").textContent =
     `${res.spec.name} — iç ölçü ${res.spec.w}×${res.spec.l}×${res.spec.h} cm — ` +
-    `dolum: ön sütunlar yukarı istiflenir, arkaya (kapıya) doğru dolar`;
+    `brüt ${grossVolume().toFixed(1)} m³, fire %${res.firePct} → kullanılabilir ${usableVolume().toFixed(1)} m³ — ` +
+    `dolum önden arkaya sütun sütun`;
   $("statsRest").innerHTML =
     `<span>🚛 Araç ${state.activeVehicle + 1}: <b>${s.count}</b> paket</span>` +
     `<span>Toplam yüklendi: <b>${placed}</b></span>` +
@@ -301,7 +315,7 @@ function renderResults() {
     res.unplaced.forEach((u) => (g[u.name] = (g[u.name] || 0) + 1));
     $("unplacedList").innerHTML =
       Object.entries(g).map(([n, c]) => `<b>${n}</b> × ${c}`).join(" • ") +
-      `<br><span style="color:#fca5a5">Bu ürünler hiçbir araca sığmadı — araç adedini artırmayı deneyin.</span>`;
+      `<br><span style="color:#fca5a5">Araç adedini artırmayı, fire oranını azaltmayı veya Öncelik ayarlarını deneyin.</span>`;
   } else ub.classList.add("hidden");
 }
 
@@ -404,7 +418,7 @@ function updateVehLabel(visibleCount) {
 
   let vol = 0;
   for (let i = 0; i < visibleCount && i < meshes.length; i++) vol += meshes[i].userData.vol;
-  const cap = capVolume();
+  const cap = usableVolume();
   const pct = cap ? ((vol / cap) * 100).toFixed(1) : "0";
 
   g.font = "bold 58px system-ui";
@@ -417,7 +431,6 @@ function updateVehLabel(visibleCount) {
   g.font = "bold 48px system-ui";
   g.fillText(`Araç ${state.activeVehicle + 1}`, 190, canvas.height / 2);
 
-  // imza
   g.font = "bold 30px system-ui";
   g.textAlign = "right"; g.textBaseline = "alphabetic";
   g.fillStyle = "rgba(147,197,253,0.75)";
@@ -586,7 +599,7 @@ function applyVisibility(n) {
   let vol = 0;
   for (let i = 0; i < n && i < meshes.length; i++) vol += meshes[i].userData.vol;
   $("volStat").textContent = vol.toFixed(1);
-  const cap = capVolume();
+  const cap = usableVolume();
   $("fillStat").textContent = cap ? ((vol / cap) * 100).toFixed(1) : "0";
   updateVehLabel(n);
 }
