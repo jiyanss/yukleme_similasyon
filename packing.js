@@ -4,8 +4,13 @@
 //  Ölçüler: cm | simulate(paketler, aracOlcu, aracAdedi, fireYuzde)
 //  Yön: "" serbest | "ENINE" boy→araç eni | "BOYUNA" boy→araç boyu
 //  Öncelik: küçük sayı önce yüklenir
-//  Fire: kullanılabilir hacim = brüt × (1 - fire/100), aşılırsa paket o araca yüklenmez
-//  İstif: boşsa otomatik = floor(araç yüksekliği / paketin o duruştaki yüksekliği)
+//  Fire: kullanılabilir hacim = brüt × (1 - fire/100)
+//  İstif: boşsa otomatik = floor(araç yüksekliği / duruş yüksekliği)
+//  ŞERIT DOLDURMA: ENINE/BOYUNA kilitli ürün hiçbir araca sığamazsa
+//  son çare serbest dönüşle dener (DIK asla esnemez).
+//  Dönüş seçimi nokta başına kolon verimi skoru ile:
+//  skor = floor(kalan yükseklik / duruş yüksekliği) / duruş uzunluğu
+//  → aynı ürün TIR'da yatık, 45HC'de dik yüklenebilir.
 // ═══════════════════════════════════════════════════════
 var PackingEngine = (function () {
   "use strict";
@@ -45,18 +50,19 @@ var PackingEngine = (function () {
   }
 
   // w = araç genişliği (x), l = araç uzunluğu (z), h = dikey (y)
-  function getRotations(item) {
+  // relaxed=true: ENINE/BOYUNA kilidi son çare olarak açılır (şerit doldurma)
+  function getRotations(item, relaxed) {
     if (item.rule === "DIK") return [{ w: item.w, l: item.l, h: item.h }];
 
     var d = [item.w, item.l, item.h];
     var perms;
 
-    if (item.loadDir === "BOYUNA") {
+    if (!relaxed && item.loadDir === "BOYUNA") {
       perms = [
         [d[0], d[1], d[2]],
         [d[2], d[1], d[0]],
       ];
-    } else if (item.loadDir === "ENINE") {
+    } else if (!relaxed && item.loadDir === "ENINE") {
       perms = [
         [d[1], d[0], d[2]],
         [d[1], d[2], d[0]],
@@ -73,13 +79,6 @@ var PackingEngine = (function () {
     perms.forEach(function (pm) {
       var key = pm.join("|");
       if (!seen[key]) { seen[key] = 1; out.push({ w: pm[0], l: pm[1], h: pm[2] }); }
-    });
-
-    // Akıllı sıralama: aracın enini en çok dolduran önce → yan şerit minik kalır,
-    // açılan şeriğe sonraki parçalar dikine yerleşebilir
-    out.sort(function (a, b) {
-      if (b.w !== a.w) return b.w - a.w;
-      return (b.w * b.l) - (a.w * a.l);
     });
     return out;
   }
@@ -126,20 +125,32 @@ var PackingEngine = (function () {
     return true;
   }
 
-  function tryPlace(vehicle, item, spec, usableVol) {
-    var rotations = getRotations(item);
+  function tryPlace(vehicle, item, spec, usableVol, rotations) {
     var itemVol = (item.w * item.l * item.h) / 1e6;
-
-    // FIRE kontrolü: kullanılabilir hacmi aşacak paket bu araca girmez
     if (vehicle.usedVol + itemVol > usableVol + 1e-6) return false;
 
+    // sütun sütun dolum: öndeki sütun yukarı dolar, sonra arkaya geçer
     var points = vehicle.points.slice().sort(function (a, b) {
       return a.z - b.z || a.x - b.x || a.y - b.y;
     });
+
     for (var pi = 0; pi < points.length; pi++) {
       var pt = points[pi];
-      for (var ri = 0; ri < rotations.length; ri++) {
-        var r = rotations[ri];
+
+      // ═ NOKTA BAZLI AKILLI SIRALAMA ═
+      // 1) Aracın enini en çok dolduran dönüş önce (şerit en küçük kalsın)
+      // 2) Eşitlikte kolon verimi: bu noktadan üste kaç katman sığar / kaç cm uzunluk yer
+      //    → kalan yüksekliğe göre dik mi yatık mı daha çok mal alır, hesaplar
+      var remainH = spec.h - pt.y;
+      var rots = rotations.slice().sort(function (a, b) {
+        if (b.w !== a.w) return b.w - a.w;
+        var sa = Math.floor(remainH / a.h) / a.l;
+        var sb = Math.floor(remainH / b.h) / b.l;
+        return sb - sa;
+      });
+
+      for (var ri = 0; ri < rots.length; ri++) {
+        var r = rots[ri];
         var box = { x: pt.x, y: pt.y, z: pt.z, w: r.w, l: r.l, h: r.h };
         if (box.x + box.w > spec.w + 0.01) continue;
         if (box.y + box.h > spec.h + 0.01) continue;
@@ -183,8 +194,12 @@ var PackingEngine = (function () {
     var unplaced = [];
 
     items.forEach(function (item) {
+      // Şerit esnetme: ENINE/BOYUNA kilitli ürün, o araçta kurala uyan yer kalmadıysa
+      // aynı araçta serbest dönüşle (dik/şerit doldurma) denenir. DIK asla esnemez.
+      var relaxable = item.loadDir === "ENINE" || item.loadDir === "BOYUNA";
       for (var vi = 0; vi < vehicles.length; vi++) {
-        if (tryPlace(vehicles[vi], item, vehicleSpec, usableVol)) return;
+        if (tryPlace(vehicles[vi], item, vehicleSpec, usableVol, getRotations(item, false))) return;
+        if (relaxable && tryPlace(vehicles[vi], item, vehicleSpec, usableVol, getRotations(item, true))) return;
       }
       unplaced.push(item);
     });
