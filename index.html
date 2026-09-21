@@ -10,6 +10,7 @@
   header { padding:14px 20px; border-bottom:1px solid #1e293b; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
   h1 { font-size:18px; }
   .subtitle { color:#64748b; font-size:13px; }
+  .brand { margin-left:auto; border:1px solid rgba(96,165,250,.4); color:#93c5fd; padding:4px 12px; border-radius:99px; font-size:11px; font-weight:600; letter-spacing:.4px; background:rgba(59,130,246,.08); }
   main { display:grid; grid-template-columns:400px 1fr; gap:16px; padding:16px; height:calc(100vh - 55px); }
   aside { overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
   .card { background:#111a2e; border:1px solid #1e293b; border-radius:12px; padding:16px; }
@@ -52,6 +53,7 @@
   #vehInfo { font-size:12px; color:#64748b; }
   #canvasWrap { position:relative; flex:1; min-height:340px; background:#0b1220; border:1px solid #1e293b; border-radius:12px; overflow:hidden; }
   #canvasWrap canvas { display:block; }
+  #watermark { position:absolute; right:14px; bottom:14px; z-index:4; pointer-events:none; user-select:none; border:2px solid rgba(96,165,250,.55); color:rgba(147,197,253,.85); padding:6px 14px; border-radius:8px; font-size:12px; font-weight:800; letter-spacing:1px; transform:rotate(-4deg); background:rgba(11,18,32,.4); }
   #tooltip { position:absolute; pointer-events:none; background:rgba(30,41,59,.95); border:1px solid #334155; padding:8px 10px; border-radius:8px; font-size:12px; display:none; z-index:5; line-height:1.5; }
   #statsBar { display:flex; gap:18px; flex-wrap:wrap; align-items:center; font-size:13px; color:#94a3b8; }
   #statsBar b { color:#60a5fa; }
@@ -64,8 +66,6 @@
   .swatch { width:10px; height:10px; border-radius:3px; }
   #unplacedBox { background:#2a1215; border:1px solid #7f1d1d; border-radius:12px; padding:12px 16px; font-size:13px; line-height:1.7; }
   #unplacedBox h3 { font-size:13px; color:#fca5a5; margin-bottom:4px; }
-   .brand { margin-left:auto; border:1px solid rgba(96,165,250,.4); color:#93c5fd; padding:4px 12px; border-radius:99px; font-size:11px; font-weight:600; letter-spacing:.4px; background:rgba(59,130,246,.08); }
-  #watermark { position:absolute; right:14px; bottom:14px; z-index:4; pointer-events:none; user-select:none; border:2px solid rgba(96,165,250,.55); color:rgba(147,197,253,.85); padding:6px 14px; border-radius:8px; font-size:12px; font-weight:800; letter-spacing:1px; transform:rotate(-4deg); background:rgba(11,18,32,.4); }
   .hidden { display:none !important; }
   @media (max-width:900px) { main { grid-template-columns:1fr; height:auto; } #canvasWrap { height:55vh; flex:none; } }
 </style>
@@ -157,18 +157,18 @@
         <input type="range" id="loadSlider" min="0" max="0" value="0">
         <span id="sliderLabel">—</span>
         <span id="speedLabel">Hız:</span>
-       <select id="speedSelect">
-  <option value="0.1" selected>0.10x</option>
-  <option value="0.25">0.25x</option>
-  <option value="0.5">0.5x</option>
-  <option value="1">1x</option>
-  <option value="2">2x</option>
-  <option value="3">3x</option>
-</select>
+        <select id="speedSelect">
+          <option value="0.1" selected>0.10x</option>
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+        </select>
       </div>
     </div>
     <div id="vehInfo"></div>
-   <div id="canvasWrap"><div id="tooltip"></div><div id="watermark">DESIGN BY SAIT</div></div>
+    <div id="canvasWrap"><div id="tooltip"></div><div id="watermark">DESIGN BY SAIT</div></div>
     <div id="statsBar">
       <div id="volBadge">
         <span class="big"><span id="volStat">0.0</span> m³</span>
