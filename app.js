@@ -642,7 +642,7 @@ function buildScene() {
   stopPlay();
 }
 
-// ─── Kamera kontrolleri ───
+// ─── Kamera kontrolleri (kayıt sırasında kilitli) ───
 function updateCamera() {
   const { theta, phi, radius, center } = camCtl;
   camera.position.set(
@@ -655,9 +655,10 @@ function updateCamera() {
 
 function bindControls(el) {
   let drag = false, lx = 0, ly = 0;
-  el.addEventListener("mousedown", (e) => { drag = true; lx = e.clientX; ly = e.clientY; });
+  el.addEventListener("mousedown", (e) => { if (recording) return; drag = true; lx = e.clientX; ly = e.clientY; });
   window.addEventListener("mouseup", () => (drag = false));
   window.addEventListener("mousemove", (e) => {
+    if (recording) return; // kayıtta kamera ve tooltip kilitli
     if (drag) {
       camCtl.theta -= (e.clientX - lx) * 0.006;
       camCtl.phi = Math.min(1.52, Math.max(0.08, camCtl.phi - (e.clientY - ly) * 0.006));
@@ -667,6 +668,7 @@ function bindControls(el) {
     hover(e, el);
   });
   el.addEventListener("wheel", (e) => {
+    if (recording) return;
     e.preventDefault();
     camCtl.radius = Math.min(100000, Math.max(100, camCtl.radius * (1 + Math.sign(e.deltaY) * 0.1)));
     updateCamera();
@@ -696,6 +698,8 @@ function hover(e, el) {
 
 // ─── Animasyon + hız kontrolü (0.10x – 3x) ───
 let playTimer = null;
+let recording = false, recStopRequested = false;
+
 function stopPlay() {
   if (playTimer) { clearInterval(playTimer); playTimer = null; $("playBtn").textContent = "⏵ Yükleme animasyonu"; }
 }
@@ -728,14 +732,14 @@ function startPlay(keepPos) {
   }, interval);
 }
 
- $("playBtn").addEventListener("click", () => (playTimer ? stopPlay() : startPlay(false)));
+ $("playBtn").addEventListener("click", () => { if (recording) return; playTimer ? stopPlay() : startPlay(false); });
  $("speedSelect").addEventListener("change", () => {
+  if (recording) return;
   if (playTimer) startPlay(true);
 });
- $("loadSlider").addEventListener("input", (e) => { stopPlay(); applyVisibility(+e.target.value); });
+ $("loadSlider").addEventListener("input", (e) => { if (recording) return; stopPlay(); applyVisibility(+e.target.value); });
 
-// ═══════════ PDF / Yazdırma Raporu ═══════════
-// Her araç TEK sayfa: üstten plan + yandan kesit + ürün özeti
+// ═══════════ PDF / Yazdırma Raporu (her araç = tek sayfa) ═══════════
 
 function topViewSVG(placements, spec) {
   // Uzunluk yatay: svg x = araç boyu (z), svg y = araç eni (x). ÖN solda.
@@ -861,6 +865,116 @@ function buildPrintArea() {
   buildPrintArea();
   window.print();
 });
+
+// ═══════════ Sinematik Video Kaydı (Mod A) ═══════════
+const REC_BTN_DEFAULT = "🎬 Video kaydet";
+
+function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+
+function setCam(theta, phi, radius, cz) {
+  camCtl.theta = theta; camCtl.phi = phi; camCtl.radius = radius;
+  camCtl.center.z = cz;
+  updateCamera();
+}
+
+async function recordCinematic() {
+  if (recording) { recStopRequested = true; return; } // ikinci basış = iptal
+  if (!state.result || !meshes.length) { alert("Önce simülasyonu çalıştırın."); return; }
+  if (typeof MediaRecorder === "undefined" || !renderer) {
+    alert("Tarayıcınız video kaydını desteklemiyor. Chrome veya Edge deneyin."); return;
+  }
+  const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
+    .find((m) => MediaRecorder.isTypeSupported(m));
+  if (!mime) { alert("Bu tarayıcı webm kaydını desteklemiyor. Chrome/Edge kullanın."); return; }
+
+  const selSpeed = +$("speedSelect").value || 1;
+  const recSpeed = Math.max(selSpeed, 0.25); // 0.10x çok uzun sürer → kayıtta min 0.25x
+  const N = meshes.length;
+  const perPkgMs = Math.max(12, 30 / recSpeed) / Math.max(1, Math.ceil((N / 150) * recSpeed));
+  const loadMs = N * perPkgMs;
+  const tourMs = 7000;
+  const fadeMs = 600;
+  const totalSec = Math.round((loadMs + tourMs + fadeMs) / 1000);
+
+  if (!confirm(`🎬 Kayıt başlıyor: yaklaşık ${totalSec} saniye.\n\n• Faz 1: paketler yerleşirken kamera ÖN'den KAPI'ya süzülür\n• Faz 2: dolu araçta 360° tur\n\nKayıt sırasında bu sekmeyi açık tutun, başka sekmeye geçmeyin.\nİptal: butona tekrar basın.\n\nBaşlat?`)) return;
+
+  const spec = state.result.spec;
+  const R = Math.hypot(spec.w, spec.h, spec.l);
+  const savedCam = { theta: camCtl.theta, phi: camCtl.phi, radius: camCtl.radius, center: { ...camCtl.center } };
+  stopPlay();
+
+  const stream = renderer.domElement.captureStream(30);
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 });
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  const stopped = new Promise((res) => (rec.onstop = res));
+  rec.start(250);
+
+  recording = true;
+  const btn = $("recBtn");
+  btn.textContent = "⏹ Kaydı iptal et";
+  btn.classList.add("recording");
+
+  applyVisibility(0);
+  const sl = $("loadSlider");
+  sl.value = 0;
+
+  const t0 = performance.now();
+  await new Promise((resolve) => {
+    function frame(now) {
+      if (recStopRequested) { resolve(); return; }
+      const el = now - t0;
+
+      if (el < loadMs) {
+        // FAZ 1: yükleme + süzülme
+        const t = easeInOut(Math.min(1, el / loadMs));
+        const pkgNow = Math.min(N, Math.floor(el / perPkgMs));
+        applyVisibility(pkgNow);
+        sl.value = pkgNow;
+        setCam(-Math.PI * 0.62 + t * (Math.PI * 0.24), 1.18 - t * 0.12,
+               R * (1.35 - t * 0.25), spec.l * (0.10 + t * 0.80));
+      } else if (el < loadMs + tourMs) {
+        // FAZ 2: tam dolu araçta 360° tur
+        if (+sl.value !== N) { sl.value = N; applyVisibility(N); }
+        const t = (el - loadMs) / tourMs;
+        setCam(-Math.PI * 0.38 + t * Math.PI * 2, 1.06 + Math.sin(t * Math.PI * 2) * 0.06,
+               R * 1.12, spec.l / 2);
+      } else if (el < loadMs + tourMs + fadeMs) {
+        // FAZ 3: son kare nefes
+        setCam(-Math.PI * 0.38, 1.02, R * 1.05, spec.l / 2);
+      } else { resolve(); return; }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+
+  recording = false;
+  rec.stop();
+  await stopped;
+
+  // kamerayı kayıt öncesi haline döndür, sahneyi tam göster
+  camCtl.theta = savedCam.theta; camCtl.phi = savedCam.phi; camCtl.radius = savedCam.radius;
+  camCtl.center = savedCam.center;
+  updateCamera();
+  sl.value = N; applyVisibility(N);
+
+  btn.textContent = REC_BTN_DEFAULT;
+  btn.classList.remove("recording");
+
+  if (recStopRequested) { recStopRequested = false; return; } // iptal → dosya yok
+
+  const blob = new Blob(chunks, { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `arac${state.activeVehicle + 1}-${state.result.spec.id}-yukleme.webm`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+ $("recBtn").addEventListener("click", recordCinematic);
 
 // ═══════════ Olay bağlama + başlangıç ═══════════
 VEHICLE_TYPES.forEach((v, i) => {
